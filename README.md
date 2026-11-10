@@ -10,7 +10,7 @@ Brenno Távora Barbosa · Daniel Santana Souza
 
 | Nº | Módulo | Arquivo | Arquivo de dados | Responsável | Status |
 |---|---|---|---|---|---|
-| — | Main | `main.py` | — | grupo | a fazer |
+| — | Main | `main.py` | — | grupo | 🟡 menu do catálogo (perfis admin/cliente) |
 | 1 | CatalogoProdutos | `modulos/catalogo_produtos.py` | `dados/produtos.json` | Daniel | ✅ pronto (34 testes) |
 | 2 | GerenciadorClientes | `modulos/gerenciador_clientes.py` | `dados/clientes.json` | Pedro | a fazer |
 | 3 | ProcessadorPedidos | `modulos/processador_pedidos.py` | `dados/pedidos.json` | Brenno e Guilherme | a fazer |
@@ -32,6 +32,12 @@ loja/
 │   └── teste_catalogo_produtos.py
 └── dados/                        # arquivos JSON (cada um só é lido/gravado pelo seu módulo)
     └── produtos.json
+```
+
+## Como rodar a aplicação
+
+```bash
+python main.py
 ```
 
 ## Como rodar os testes
