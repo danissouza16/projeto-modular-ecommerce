@@ -1,37 +1,40 @@
 # Loja Virtual — Projeto de Programação Modular (INF1040 · 2026.2 · 3WB)
 
 Aplicação de loja virtual em Python que cobre o ciclo completo de uma venda online:
-catálogo → carrinho → pedido → pagamento simulado → relatórios[cite: 16].
+catálogo → carrinho → pedido → pagamento simulado → relatórios.
 
 **Grupo 2:** Pedro Augusto Beserra da Silva · Guilherme Meira Diniz · Matheus Marques ·
-Brenno Távora Barbosa · Daniel Santana Souza[cite: 15]
+Brenno Távora Barbosa · Daniel Santana Souza
 
 ## Módulos e responsáveis
 
 | Nº | Módulo | Arquivo | Arquivo de dados | Responsável | Status |
 |---|---|---|---|---|---|
 | — | Main | `main.py` | — | grupo | 🟡 login, catálogo e carrinho (perfis admin/cliente) |
-| 1 | CatalogoProdutos | `modulos/catalogo_produtos.py` | `dados/produtos.json`[cite: 17, 20] | Daniel[cite: 23] | ✅ pronto (34 testes) |
-| 2 | GerenciadorClientes | `modulos/gerenciador_clientes.py` | `dados/clientes.json`[cite: 17, 21] | Pedro[cite: 23] | ✅ pronto (33 testes) |
-| 3 | ProcessadorPedidos | `modulos/processador_pedidos.py` | `dados/pedidos.json`[cite: 17, 22] | Brenno e Guilherme[cite: 23] | a fazer |
-| 4 | RelatoriosVendas | `modulos/relatorios_vendas.py` | —[cite: 23] | Matheus[cite: 24] | a fazer |
+| 1 | CatalogoProdutos | `modulos/catalogo_produtos.py` | `dados/produtos.json` | Daniel | ✅ pronto (34 testes) |
+| 2 | GerenciadorClientes | `modulos/gerenciador_clientes.py` | `dados/clientes.json` | Pedro | ✅ pronto (33 testes) |
+| 3 | ProcessadorPedidos | `modulos/processador_pedidos.py` | `dados/pedidos.json` | Brenno e Guilherme | a fazer |
+| 4 | RelatoriosVendas | `modulos/relatorios_vendas.py` | — | Matheus | a fazer |
 
 Dependências (sem ciclos): Main → todos · Clientes, Pedidos e Relatórios → Catálogo ·
-Pedidos → Clientes · Relatórios → Pedidos[cite: 19].
+Pedidos → Clientes · Relatórios → Pedidos.
 
 ## Estrutura
 
 ```
 loja/
-├── main.py                       # ponto de entrada (único módulo que usa input/print)
-├── modulos/                      # módulos de negócio
-│   ├── __init__.py
-│   └── catalogo_produtos.py
-├── testes/                       # um módulo testador por módulo
-│   ├── __init__.py
-│   └── teste_catalogo_produtos.py
-└── dados/                        # arquivos JSON (cada um só é lido/gravado pelo seu módulo)
-    └── produtos.json
+├── main.py                           # ponto de entrada (único módulo que usa input/print)
+├── modulos/                          # módulos de negócio
+│   ├── init.py
+│   ├── catalogo_produtos.py
+│   └── gerenciador_clientes.py
+├── testes/                           # um módulo testador por módulo
+│   ├── init.py
+│   ├── teste_catalogo_produtos.py
+│   └── teste_gerenciador_clientes.py
+└── dados/                            # arquivos JSON (cada um só é lido/gravado pelo seu módulo)
+├── produtos.json
+└── clientes.json
 ```
 
 ## Como rodar a aplicação
