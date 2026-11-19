@@ -1,23 +1,23 @@
 # Loja Virtual — Projeto de Programação Modular (INF1040 · 2026.2 · 3WB)
 
 Aplicação de loja virtual em Python que cobre o ciclo completo de uma venda online:
-catálogo → carrinho → pedido → pagamento simulado → relatórios.
+catálogo → carrinho → pedido → pagamento simulado → relatórios[cite: 16].
 
 **Grupo 2:** Pedro Augusto Beserra da Silva · Guilherme Meira Diniz · Matheus Marques ·
-Brenno Távora Barbosa · Daniel Santana Souza
+Brenno Távora Barbosa · Daniel Santana Souza[cite: 15]
 
 ## Módulos e responsáveis
 
 | Nº | Módulo | Arquivo | Arquivo de dados | Responsável | Status |
 |---|---|---|---|---|---|
-| — | Main | `main.py` | — | grupo | 🟡 menu do catálogo (perfis admin/cliente) |
-| 1 | CatalogoProdutos | `modulos/catalogo_produtos.py` | `dados/produtos.json` | Daniel | ✅ pronto (34 testes) |
-| 2 | GerenciadorClientes | `modulos/gerenciador_clientes.py` | `dados/clientes.json` | Pedro | a fazer |
-| 3 | ProcessadorPedidos | `modulos/processador_pedidos.py` | `dados/pedidos.json` | Brenno e Guilherme | a fazer |
-| 4 | RelatoriosVendas | `modulos/relatorios_vendas.py` | — | Matheus | a fazer |
+| — | Main | `main.py` | — | grupo | 🟡 login, catálogo e carrinho (perfis admin/cliente) |
+| 1 | CatalogoProdutos | `modulos/catalogo_produtos.py` | `dados/produtos.json`[cite: 17, 20] | Daniel[cite: 23] | ✅ pronto (34 testes) |
+| 2 | GerenciadorClientes | `modulos/gerenciador_clientes.py` | `dados/clientes.json`[cite: 17, 21] | Pedro[cite: 23] | ✅ pronto (33 testes) |
+| 3 | ProcessadorPedidos | `modulos/processador_pedidos.py` | `dados/pedidos.json`[cite: 17, 22] | Brenno e Guilherme[cite: 23] | a fazer |
+| 4 | RelatoriosVendas | `modulos/relatorios_vendas.py` | —[cite: 23] | Matheus[cite: 24] | a fazer |
 
 Dependências (sem ciclos): Main → todos · Clientes, Pedidos e Relatórios → Catálogo ·
-Pedidos → Clientes · Relatórios → Pedidos.
+Pedidos → Clientes · Relatórios → Pedidos[cite: 19].
 
 ## Estrutura
 
@@ -45,8 +45,9 @@ python main.py
 Sempre a partir da pasta raiz do repositório:
 
 ```bash
-python -m unittest discover -s testes -p "teste_*.py" -v   # todos os módulos
-python -m unittest testes.teste_catalogo_produtos -v        # só um módulo
+python -m unittest discover -s testes -p "teste_*.py" -v   # todos os módulos (67 testes)
+python -m unittest testes.teste_catalogo_produtos -v        # só catálogo (34 testes)
+python -m unittest testes.teste_gerenciador_clientes -v     # só clientes (33 testes)
 ```
 
 ## Regras do projeto (resumo do T2 e das orientações da disciplina)

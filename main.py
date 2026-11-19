@@ -7,15 +7,19 @@ Objetivo
     lê e converte as entradas e chama SOMENTE as funções de acesso dos módulos.
 
 Controle de acesso por perfil (RNF02)
-    - Administrador: gerencia o catálogo e o estoque.
-    - Cliente: apenas consulta o catálogo (carrinho e pedidos entram quando
-      os módulos 2 e 3 forem integrados).
+- Autenticação via 2.4 AutenticarCliente(email, senha) retorna o perfil.
+- Administrador ("admin"): gerencia o catálogo e o estoque (e relatórios quando
+      o módulo 4 for integrado).
+- Cliente ("cliente"): consulta o catálogo e gerencia seu carrinho
+      (compras/pedidos entram quando o módulo 3 for integrado).
 
 Relações (Diagrama de Arquitetura)
-    Cliente de: CatalogoProdutos (demais módulos serão adicionados na integração)
+    Cliente de: CatalogoProdutos (1.1..1.6, 1.9),
+                GerenciadorClientes (2.3..2.9)
 """
 
 from modulos import catalogo_produtos as catalogo
+from modulos import gerenciador_clientes as clientes
 
 
 # --------------------------------------------------------------------------
@@ -57,12 +61,52 @@ def _mostrar_lista(produtos):
         _mostrar_produto(p)
 
 
+def _mostrar_carrinho(cpf):
+    itens = clientes.ObterCarrinho(cpf)
+    if not itens:
+        print("  Carrinho vazio.")
+        return
+    for item in itens:
+        subtotal_item = item["preco"] * item["quantidade"]
+        print(f"  [{item['codigo']}] {item['nome']} - "
+              f"{item['quantidade']}x R$ {item['preco']:.2f} = R$ {subtotal_item:.2f}")
+    print(f"  Subtotal do carrinho: R$ {clientes.CalcularSubtotal(cpf):.2f}")
+
+
 def _resultado(ok, msg_ok, msg_erro):
     print(msg_ok if ok else msg_erro)
 
 
 # --------------------------------------------------------------------------
-# Ações do catálogo
+# Ações de autenticação e cadastro (2.3, 2.4)
+# --------------------------------------------------------------------------
+
+def _cadastrar_cliente():
+    cliente = {
+        "cpf": _ler_texto("CPF (11 dígitos): "),
+        "nome": _ler_texto("Nome completo: "),
+        "email": _ler_texto("E-mail: "),
+        "senha": _ler_texto("Senha: "),
+        "endereco": _ler_texto("Endereço: "),
+    }
+    _resultado(clientes.CadastrarCliente(cliente),
+               "Cadastro realizado com sucesso! Faça login para continuar.",
+               "Não foi possível cadastrar (dados inválidos ou CPF/e-mail já existente).")
+
+
+def _fazer_login():
+    email = _ler_texto("E-mail: ")
+    senha = _ler_texto("Senha: ")
+    usuario = clientes.AutenticarCliente(email, senha)
+    if not usuario:
+        print("E-mail ou senha inválidos.")
+        return None
+    print(f"Bem-vindo(a), {usuario['nome']}!")
+    return usuario
+
+
+# --------------------------------------------------------------------------
+# Ações do catálogo (1.1 a 1.6, 1.9)
 # --------------------------------------------------------------------------
 
 def _listar_produtos():
@@ -114,11 +158,6 @@ def _remover_produto():
                "Produto não encontrado.")
 
 
-def _consultar_estoque():
-    qtd = catalogo.ConsultarEstoque(_ler_texto("Código: "))
-    print("Produto não encontrado." if qtd == -1 else f"Estoque: {qtd}")
-
-
 def _repor_estoque():
     codigo = _ler_texto("Código: ")
     qtd = _ler_inteiro("Quantidade a repor: ")
@@ -128,7 +167,7 @@ def _repor_estoque():
 
 
 # --------------------------------------------------------------------------
-# Menus
+# Fluxos do sistema (Seção 3.1)
 # --------------------------------------------------------------------------
 
 def _executar_menu(titulo, opcoes):
@@ -148,39 +187,87 @@ def _executar_menu(titulo, opcoes):
         opcoes[escolha - 1][1]()
 
 
-def _menu_administrador():
-    _executar_menu("Administrador - Catálogo", [
+def fluxo_catalogo(perfil):
+    """Conduz consulta de produtos (todos) e manutenção (apenas admin)."""
+    opcoes = [
         ("Listar produtos", _listar_produtos),
         ("Buscar produto por código", _buscar_por_codigo),
         ("Buscar produto por nome", _buscar_por_nome),
-        ("Cadastrar produto", _cadastrar_produto),
-        ("Atualizar produto", _atualizar_produto),
-        ("Remover produto", _remover_produto),
-        ("Consultar estoque", _consultar_estoque),
-        ("Repor estoque", _repor_estoque),
+    ]
+    if perfil == "admin":
+        opcoes.extend([
+            ("Cadastrar produto", _cadastrar_produto),
+            ("Atualizar produto", _atualizar_produto),
+            ("Remover produto", _remover_produto),
+            ("Repor estoque", _repor_estoque),
+        ])
+    _executar_menu("Catálogo de Produtos", opcoes)
+
+
+def fluxo_carrinho(cpf):
+    """Conduz inclusão, alteração, remoção e visualização do carrinho (2.5 a 2.9)."""
+    def _adicionar():
+        codigo = _ler_texto("Código do produto: ")
+        qtd = _ler_inteiro("Quantidade: ")
+        _resultado(clientes.AdicionarItemCarrinho(cpf, codigo, qtd),
+                   "Item adicionado ao carrinho.",
+                   "Não foi possível adicionar (produto inexistente, quantidade inválida ou estoque insuficiente).")
+
+    def _alterar_qtd():
+        codigo = _ler_texto("Código do produto: ")
+        qtd = _ler_inteiro("Nova quantidade: ")
+        _resultado(clientes.AlterarQuantidadeItem(cpf, codigo, qtd),
+                   "Quantidade atualizada.",
+                   "Não foi possível alterar (item fora do carrinho, quantidade <= 0 ou estoque insuficiente).")
+
+    def _remover():
+        codigo = _ler_texto("Código do produto: ")
+        _resultado(clientes.RemoverItemCarrinho(cpf, codigo),
+                   "Item removido do carrinho.",
+                   "Item não encontrado no carrinho.")
+
+    def _ver():
+        _mostrar_carrinho(cpf)
+
+    _executar_menu("Meu Carrinho", [
+        ("Ver carrinho e subtotal", _ver),
+        ("Adicionar item ao carrinho", _adicionar),
+        ("Alterar quantidade de item", _alterar_qtd),
+        ("Remover item do carrinho", _remover),
     ])
 
 
-def _menu_cliente():
-    _executar_menu("Cliente - Catálogo", [
-        ("Listar produtos", _listar_produtos),
-        ("Buscar produto por código", _buscar_por_codigo),
-        ("Buscar produto por nome", _buscar_por_nome),
+def _sessao_administrador():
+    _executar_menu("Menu Administrador", [
+        ("Catálogo e Estoque", lambda: fluxo_catalogo("admin")),
     ])
 
 
-def main():
+def _sessao_cliente(usuario):
+    cpf = usuario["cpf"]
+    _executar_menu(f"Menu Cliente ({usuario['nome']})", [
+        ("Consultar Catálogo", lambda: fluxo_catalogo("cliente")),
+        ("Meu Carrinho", lambda: fluxo_carrinho(cpf)),
+    ])
+
+
+def menu():
     while True:
         print("\n=== Loja Virtual ===")
-        print("1 - Entrar como administrador")
-        print("2 - Entrar como cliente")
+        print("1 - Entrar (Login)")
+        print("2 - Cadastrar-se como cliente")
         print("0 - Sair")
 
         escolha = _ler_inteiro("Opção: ")
         if escolha == 1:
-            _menu_administrador()
+            usuario = _fazer_login()
+            if usuario:
+                if usuario.get("perfil") == "admin":
+                    _sessao_administrador()
+                else:
+                    _sessao_cliente(usuario)
         elif escolha == 2:
-            _menu_cliente()
+            _cadastrar_cliente()
         elif escolha == 0:
             print("Até logo!")
             return
@@ -189,4 +276,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    menu()
