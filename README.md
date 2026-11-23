@@ -13,7 +13,7 @@ Brenno Távora Barbosa · Daniel Santana Souza
 | — | Main | `main.py` | — | grupo | 🟡 login, catálogo e carrinho (perfis admin/cliente) |
 | 1 | CatalogoProdutos | `modulos/catalogo_produtos.py` | `dados/produtos.json` | Daniel | ✅ pronto (34 testes) |
 | 2 | GerenciadorClientes | `modulos/gerenciador_clientes.py` | `dados/clientes.json` | Pedro | ✅ pronto (33 testes) |
-| 3 | ProcessadorPedidos | `modulos/processador_pedidos.py` | `dados/pedidos.json` | Brenno e Guilherme | a fazer |
+| 3 | ProcessadorPedidos | `modulos/processador_pedidos.py` | `dados/pedidos.json` | Brenno e Guilherme | ✅ pronto (35 testes) |
 | 4 | RelatoriosVendas | `modulos/relatorios_vendas.py` | — | Matheus | a fazer |
 
 Dependências (sem ciclos): Main → todos · Clientes, Pedidos e Relatórios → Catálogo ·
@@ -48,9 +48,10 @@ python main.py
 Sempre a partir da pasta raiz do repositório:
 
 ```bash
-python -m unittest discover -s testes -p "teste_*.py" -v   # todos os módulos (67 testes)
-python -m unittest testes.teste_catalogo_produtos -v        # só catálogo (34 testes)
-python -m unittest testes.teste_gerenciador_clientes -v     # só clientes (33 testes)
+python -m unittest discover -s testes -p "teste_*.py" -v      # todos os módulos (102 testes)
+python -m unittest testes.teste_catalogo_produtos -v           # só catálogo (34 testes)
+python -m unittest testes.teste_gerenciador_clientes -v        # só clientes (33 testes)
+python -m unittest testes.teste_processador_pedidos -v         # só pedidos (35 testes)
 ```
 
 ## Regras do projeto (resumo do T2 e das orientações da disciplina)
