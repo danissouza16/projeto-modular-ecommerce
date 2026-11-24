@@ -390,6 +390,20 @@ class Teste_2_8_ObterCarrinho(BaseClientes):
         print("2.8 C3 - Obtencao de carrinho para cliente inexistente")
         self.assertEqual(clientes.ObterCarrinho("00000000000"), [])
 
+    @patch("modulos.catalogo_produtos.BuscarProduto", side_effect=_mock_buscar_produto)
+    def test_04_produto_removido_do_catalogo(self, _mock_bus):
+        print("2.8 C4 (extra) - Item de produto removido do catalogo sai do carrinho")
+        montar_cenario_inicial(self.pasta, [{
+            "cpf": "11122233344", "nome": "Ana", "email": "ana@test.com",
+            "senha": "1", "endereco": "Rua E", "perfil": "cliente",
+            "carrinho": [{"codigo": "P001", "quantidade": 1},
+                         {"codigo": "P999", "quantidade": 2}],
+        }])
+        self.assertEqual([i["codigo"] for i in clientes.ObterCarrinho("11122233344")],
+                         ["P001"])
+        self.assertEqual(ler_arquivo(self.arquivo)[0]["carrinho"],
+                         [{"codigo": "P001", "quantidade": 1}])
+
 
 # ==========================================================================
 # 2.9 CalcularSubtotal(cpf: str) -> float

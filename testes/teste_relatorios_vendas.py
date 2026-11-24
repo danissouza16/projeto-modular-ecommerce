@@ -1,19 +1,34 @@
 """
-Testes automatizados do Módulo 4 · RelatoriosVendas (TDD / unittest).
+Módulo testador do RelatoriosVendas (Módulo 4)
+Responsável: Matheus Marques
 
-Os módulos servidores (ProcessadorPedidos e CatalogoProdutos) são substituídos
-por versões falsas que imitam 3.7, 1.2 e 1.4, com o cenário do documento do grupo.
-Assim os testes não dependem dos colegas nem gravam nos arquivos .json reais.
+Implementa os casos de teste da seção 5.4 do documento do projeto (T2),
+mais alguns casos extras de validação de tipo.
 
-Execução (na raiz do projeto):  python testes_relatorios_vendas.py
+Organização
+- Uma classe de teste por função de acesso (4.1 a 4.6); cada método é um caso Cn.
+- Os módulos servidores (ProcessadorPedidos e CatalogoProdutos) são
+  substituídos via unittest.mock.patch por versões falsas que imitam
+  3.7, 1.2 e 1.4, com o cenário do documento. Assim os testes não dependem
+  dos colegas nem gravam nos arquivos .json reais.
+- A 4.6 grava numa pasta temporária, sem deixar arquivos no projeto.
+
+Como executar (a partir da pasta raiz do projeto):
+    python -m unittest testes.teste_relatorios_vendas -v
+  ou
+    python testes/teste_relatorios_vendas.py
 """
 
 import os
+import sys
 import tempfile
 import unittest
 from unittest.mock import patch
 
-from modulos import relatorios_vendas as rv
+# Permite rodar o arquivo diretamente (python testes/teste_relatorios_vendas.py)
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from modulos import relatorios_vendas as rv   # noqa: E402
 
 # --------------------------------------------------------------------------
 # Cenário do documento (seção 5.4)
@@ -81,53 +96,65 @@ class BaseRelatorios(unittest.TestCase):
 # 4.1 CalcularFaturamento
 # --------------------------------------------------------------------------
 
-class TestCalcularFaturamento(BaseRelatorios):
+class Teste_4_1_CalcularFaturamento(BaseRelatorios):
 
-    def test_4_1_c1_periodo_abrange_todos_os_pagos(self):
+    def test_01_periodo_abrange_todos_os_pagos(self):
+        print("4.1 C1 - Periodo que abrange todos os pedidos pagos")
         self.assertAlmostEqual(rv.CalcularFaturamento("2026-09-01", "2026-10-31"), 209.80, places=2)
 
-    def test_4_1_c2_periodo_parcial(self):
+    def test_02_periodo_parcial(self):
+        print("4.1 C2 - Periodo que abrange so parte dos pedidos pagos")
         self.assertAlmostEqual(rv.CalcularFaturamento("2026-09-01", "2026-09-30"), 149.90, places=2)
 
-    def test_4_1_c3_ignora_nao_pagos(self):
+    def test_03_ignora_nao_pagos(self):
+        print("4.1 C3 - Periodo com pedidos nao pagos (ignorados)")
         self.assertAlmostEqual(rv.CalcularFaturamento("2026-10-01", "2026-10-31"), 59.90, places=2)
 
-    def test_4_1_c4_limites_inclusivos(self):
+    def test_04_limites_inclusivos(self):
+        print("4.1 C4 - Limites do periodo inclusivos")
         self.assertAlmostEqual(rv.CalcularFaturamento("2026-09-20", "2026-10-05"), 100.00, places=2)
 
-    def test_4_1_c5_um_unico_dia(self):
+    def test_05_um_unico_dia(self):
+        print("4.1 C5 - Periodo de um unico dia")
         self.assertAlmostEqual(rv.CalcularFaturamento("2026-09-10", "2026-09-10"), 109.80, places=2)
 
-    def test_4_1_c6_periodo_sem_pedidos(self):
+    def test_06_periodo_sem_pedidos(self):
+        print("4.1 C6 - Periodo sem pedidos pagos")
         self.assertEqual(rv.CalcularFaturamento("2026-08-01", "2026-08-31"), 0.0)
 
-    def test_4_1_c7_data_inicial_posterior(self):
+    def test_07_data_inicial_posterior(self):
+        print("4.1 C7 - Data inicial posterior a final")
         self.assertEqual(rv.CalcularFaturamento("2026-10-31", "2026-09-01"), 0.0)
 
-    def test_4_1_c8_formato_invalido(self):
+    def test_08_formato_invalido(self):
+        print("4.1 C8 - Data em formato invalido")
         self.assertEqual(rv.CalcularFaturamento("10/09/2026", "2026-10-31"), 0.0)
-
 
 
 # --------------------------------------------------------------------------
 # 4.2 CalcularTicketMedio
 # --------------------------------------------------------------------------
 
-class TestCalcularTicketMedio(BaseRelatorios):
+class Teste_4_2_CalcularTicketMedio(BaseRelatorios):
 
-    def test_4_2_c1_media_de_parte_dos_pedidos(self):
+    def test_01_media_de_parte_dos_pedidos(self):
+        print("4.2 C1 - Media de periodo com parte dos pedidos pagos")
         self.assertAlmostEqual(rv.CalcularTicketMedio("2026-09-01", "2026-09-30"), 74.95, places=2)
 
-    def test_4_2_c2_um_pago_com_nao_pagos_misturados(self):
+    def test_02_um_pago_com_nao_pagos_misturados(self):
+        print("4.2 C2 - Um pedido pago com nao pagos misturados")
         self.assertAlmostEqual(rv.CalcularTicketMedio("2026-10-01", "2026-10-31"), 59.90, places=2)
 
-    def test_4_2_c3_sem_pedidos_nao_divide_por_zero(self):
+    def test_03_sem_pedidos_nao_divide_por_zero(self):
+        print("4.2 C3 - Periodo sem pedidos pagos (sem divisao por zero)")
         self.assertEqual(rv.CalcularTicketMedio("2026-08-01", "2026-08-31"), 0.0)
 
-    def test_4_2_c4_data_inicial_posterior(self):
+    def test_04_data_inicial_posterior(self):
+        print("4.2 C4 - Data inicial posterior a final")
         self.assertEqual(rv.CalcularTicketMedio("2026-10-31", "2026-09-01"), 0.0)
 
-    def test_4_2_c5_data_invalida(self):
+    def test_05_data_invalida(self):
+        print("4.2 C5 - Data invalida")
         self.assertEqual(rv.CalcularTicketMedio("2026-09-01", "2026-13-45"), 0.0)
 
 
@@ -141,35 +168,43 @@ RANKING_COMPLETO = [
 ]
 
 
-class TestListarMaisVendidos(BaseRelatorios):
+class Teste_4_3_ListarMaisVendidos(BaseRelatorios):
 
-    def test_4_3_c1_n_igual_ao_numero_de_vendidos(self):
+    def test_01_n_igual_ao_numero_de_vendidos(self):
+        print("4.3 C1 - n igual ao numero de produtos vendidos")
         self.assertEqual(rv.ListarMaisVendidos(2), RANKING_COMPLETO)
 
-    def test_4_3_c2_n_menor(self):
+    def test_02_n_menor(self):
+        print("4.3 C2 - n menor que o numero de produtos vendidos")
         self.assertEqual(rv.ListarMaisVendidos(1), RANKING_COMPLETO[:1])
 
-    def test_4_3_c3_n_maior(self):
+    def test_03_n_maior(self):
+        print("4.3 C3 - n maior que o numero de produtos vendidos")
         self.assertEqual(rv.ListarMaisVendidos(10), RANKING_COMPLETO)
 
-    def test_4_3_c4_n_zero(self):
+    def test_04_n_zero(self):
+        print("4.3 C4 - n igual a zero")
         self.assertEqual(rv.ListarMaisVendidos(0), [])
 
-    def test_4_3_c5_n_negativo(self):
+    def test_05_n_negativo(self):
+        print("4.3 C5 - n negativo")
         self.assertEqual(rv.ListarMaisVendidos(-1), [])
 
-    def test_4_3_extra_n_de_tipo_errado(self):
+    def test_06_n_de_tipo_errado(self):
+        print("4.3 C7 (extra) - n de tipo errado")
         self.assertEqual(rv.ListarMaisVendidos("2"), [])
 
-    def test_4_3_extra_produto_removido_do_catalogo_usa_nome_do_pedido(self):
+    def test_07_produto_removido_do_catalogo_usa_nome_do_pedido(self):
+        print("4.3 C8 (extra) - Produto removido do catalogo usa o nome do pedido")
         self.produtos_cenario = [p for p in PRODUTOS if p["codigo"] != "P001"]
         self.assertEqual(rv.ListarMaisVendidos(1)[0]["nome"], "Camiseta Basica")
 
 
-class TestListarMaisVendidosSoNaoPagos(BaseRelatorios):
+class Teste_4_3_ListarMaisVendidosSoNaoPagos(BaseRelatorios):
     pedidos_cenario = PEDIDOS[3:]      # só os pedidos 4 e 5
 
-    def test_4_3_c6_so_existem_pedidos_nao_pagos(self):
+    def test_01_so_existem_pedidos_nao_pagos(self):
+        print("4.3 C6 - So existem pedidos nao pagos")
         self.assertEqual(rv.ListarMaisVendidos(2), [])
 
 
@@ -177,24 +212,29 @@ class TestListarMaisVendidosSoNaoPagos(BaseRelatorios):
 # 4.4 VendasPorCliente
 # --------------------------------------------------------------------------
 
-class TestVendasPorCliente(BaseRelatorios):
+class Teste_4_4_VendasPorCliente(BaseRelatorios):
 
-    def test_4_4_c1_cliente_com_mais_de_um_pago(self):
+    def test_01_cliente_com_mais_de_um_pago(self):
+        print("4.4 C1 - Cliente com mais de um pedido pago")
         esperado = [{"numero": 1, "data": "2026-09-10", "total": 109.80},
                     {"numero": 2, "data": "2026-09-20", "total": 40.10}]
         self.assertEqual(rv.VendasPorCliente("12345678901"), esperado)
 
-    def test_4_4_c2_ignora_nao_pagos(self):
+    def test_02_ignora_nao_pagos(self):
+        print("4.4 C2 - Cliente com pedidos pagos e nao pagos")
         esperado = [{"numero": 3, "data": "2026-10-05", "total": 59.90}]
         self.assertEqual(rv.VendasPorCliente("98765432100"), esperado)
 
-    def test_4_4_c3_cliente_sem_pedidos(self):
+    def test_03_cliente_sem_pedidos(self):
+        print("4.4 C3 - Cliente sem pedidos")
         self.assertEqual(rv.VendasPorCliente("11122233344"), [])
 
-    def test_4_4_c4_cpf_inexistente(self):
+    def test_04_cpf_inexistente(self):
+        print("4.4 C4 - CPF inexistente")
         self.assertEqual(rv.VendasPorCliente("00000000000"), [])
 
-    def test_4_4_extra_cpf_de_tipo_errado(self):
+    def test_05_cpf_de_tipo_errado(self):
+        print("4.4 C5 (extra) - CPF de tipo errado")
         self.assertEqual(rv.VendasPorCliente(12345678901), [])
 
 
@@ -202,27 +242,33 @@ class TestVendasPorCliente(BaseRelatorios):
 # 4.5 ListarEstoqueBaixo
 # --------------------------------------------------------------------------
 
-class TestListarEstoqueBaixo(BaseRelatorios):
+class Teste_4_5_ListarEstoqueBaixo(BaseRelatorios):
 
     def _codigos(self, lista):
         return [p["codigo"] for p in lista]
 
-    def test_4_5_c1_limite_alcanca_um_produto(self):
+    def test_01_limite_alcanca_um_produto(self):
+        print("4.5 C1 - Limite que alcanca apenas um produto")
         self.assertEqual(self._codigos(rv.ListarEstoqueBaixo(5)), ["P002"])
 
-    def test_4_5_c2_limite_inclusivo(self):
+    def test_02_limite_inclusivo(self):
+        print("4.5 C2 - Limite igual ao estoque (inclusivo)")
         self.assertEqual(self._codigos(rv.ListarEstoqueBaixo(3)), ["P002"])
 
-    def test_4_5_c3_limite_alcanca_todos(self):
+    def test_03_limite_alcanca_todos(self):
+        print("4.5 C3 - Limite que alcanca todos os produtos")
         self.assertEqual(self._codigos(rv.ListarEstoqueBaixo(10)), ["P001", "P002"])
 
-    def test_4_5_c4_limite_menor_que_todos(self):
+    def test_04_limite_menor_que_todos(self):
+        print("4.5 C4 - Limite menor que o estoque de todos")
         self.assertEqual(rv.ListarEstoqueBaixo(2), [])
 
-    def test_4_5_c5_limite_negativo(self):
+    def test_05_limite_negativo(self):
+        print("4.5 C5 - Limite negativo")
         self.assertEqual(rv.ListarEstoqueBaixo(-1), [])
 
-    def test_4_5_extra_limite_de_tipo_errado(self):
+    def test_06_limite_de_tipo_errado(self):
+        print("4.5 C6 (extra) - Limite de tipo errado")
         self.assertEqual(rv.ListarEstoqueBaixo("5"), [])
 
 
@@ -230,7 +276,7 @@ class TestListarEstoqueBaixo(BaseRelatorios):
 # 4.6 ExportarRelatorio  (usa pasta temporária: não deixa lixo no disco)
 # --------------------------------------------------------------------------
 
-class TestExportarRelatorio(unittest.TestCase):
+class Teste_4_6_ExportarRelatorio(unittest.TestCase):
 
     def setUp(self):
         pasta = tempfile.TemporaryDirectory()
@@ -239,7 +285,8 @@ class TestExportarRelatorio(unittest.TestCase):
         os.chdir(pasta.name)
         self.addCleanup(os.chdir, original)
 
-    def test_4_6_c1_exportacao_valida(self):
+    def test_01_exportacao_valida(self):
+        print("4.6 C1 - Exportacao com dados e nome validos")
         self.assertTrue(rv.ExportarRelatorio(RANKING_COMPLETO, "mais_vendidos.txt"))
         with open("mais_vendidos.txt", encoding="utf-8") as f:
             linhas = f.read().splitlines()
@@ -247,19 +294,23 @@ class TestExportarRelatorio(unittest.TestCase):
         self.assertIn("P001", linhas[0])
         self.assertIn("P002", linhas[1])
 
-    def test_4_6_c2_lista_vazia(self):
+    def test_02_lista_vazia(self):
+        print("4.6 C2 - Exportacao com lista vazia")
         self.assertFalse(rv.ExportarRelatorio([], "vazio.txt"))
         self.assertFalse(os.path.exists("vazio.txt"))
 
-    def test_4_6_c3_nome_de_arquivo_invalido(self):
+    def test_03_nome_de_arquivo_invalido(self):
+        print("4.6 C3 - Nome de arquivo invalido")
         self.assertFalse(rv.ExportarRelatorio(RANKING_COMPLETO[:1], ""))
         self.assertFalse(rv.ExportarRelatorio(RANKING_COMPLETO[:1], "a/b.txt"))
 
-    def test_4_6_c4_erro_de_escrita(self):
+    def test_04_erro_de_escrita(self):
+        print("4.6 C4 - Erro de escrita no arquivo")
         os.mkdir("relatorio.txt")      # pasta com o mesmo nome impede a escrita
         self.assertFalse(rv.ExportarRelatorio(RANKING_COMPLETO[:1], "relatorio.txt"))
 
-    def test_4_6_extra_dados_de_tipo_errado(self):
+    def test_05_dados_de_tipo_errado(self):
+        print("4.6 C5 (extra) - Dados de tipo errado")
         self.assertFalse(rv.ExportarRelatorio("texto", "x.txt"))
 
 

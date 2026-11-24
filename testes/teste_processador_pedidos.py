@@ -311,6 +311,17 @@ class Teste_3_5_CancelarPedido(BasePedidos):
         self.assertFalse(pedidos.CancelarPedido(3))
         self.assertEqual(self.estoque["P001"], 10)
 
+    def test_05_pedido_pago_com_produto_removido(self):
+        print("3.5 C5 (extra) - Cancelamento de pedido pago com produto ja removido do catalogo")
+        removido = {"codigo": "P999", "nome": "Fora de linha", "preco": 5.00}
+        pedidos._pedidos.append(_pedido(6, CPF_MARIA, "2026-10-20",
+                                        [_item(ITEM_P001, 1), _item(removido, 1)],
+                                        64.90, "Pago"))
+        self.assertTrue(pedidos.CancelarPedido(6))
+        self.assertEqual(pedidos.BuscarPedido(6)["status"], "Cancelado")
+        self.assertEqual(self.estoque["P001"], 11)
+        self.assertNotIn("P999", self.estoque)
+
 
 # ==========================================================================
 # 3.6 BuscarPedido(num: int) -> dict (interna)

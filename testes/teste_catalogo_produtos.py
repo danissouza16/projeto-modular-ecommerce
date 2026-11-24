@@ -122,6 +122,15 @@ class Teste_1_1_CadastrarProduto(BaseCatalogo):
         retorno = catalogo.CadastrarProduto("P007, Meia, 9.90")
         self.assertFalse(retorno)
 
+    def test_07_preco_nao_finito(self):
+        print("1.1 C7 (extra) - Cadastro com preco NaN ou infinito")
+        for preco in (float("nan"), float("inf")):
+            retorno = catalogo.CadastrarProduto({
+                "codigo": "P008", "nome": "Bone", "descricao": "Aba reta",
+                "categoria": "Acessorios", "preco": preco, "estoque": 5})
+            self.assertFalse(retorno)
+        self.assertEqual(catalogo.BuscarProduto("P008"), {})
+
 
 # ==========================================================================
 # 1.2 BuscarProduto(codigo: str) -> dict
@@ -211,6 +220,12 @@ class Teste_1_5_AtualizarProduto(BaseCatalogo):
     def test_05_valor_incompativel(self):
         print("1.5 C5 - Altera preco para 'abc'")
         self.assertFalse(catalogo.AtualizarProduto("P001", "preco", "abc"))
+        self.assertEqual(catalogo.BuscarProduto("P001")["preco"], 59.90)
+
+    def test_06_preco_nao_finito(self):
+        print("1.5 C6 (extra) - Altera preco para NaN ou infinito")
+        self.assertFalse(catalogo.AtualizarProduto("P001", "preco", float("nan")))
+        self.assertFalse(catalogo.AtualizarProduto("P001", "preco", float("inf")))
         self.assertEqual(catalogo.BuscarProduto("P001")["preco"], 59.90)
 
 

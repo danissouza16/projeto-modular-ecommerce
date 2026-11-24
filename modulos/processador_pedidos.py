@@ -34,6 +34,11 @@ Regras de negócio (usadas nos casos de teste da seção 5.3)
     - Pagamento recusado: o pedido passa a "Cancelado" e o estoque não muda.
     - Cancelar um pedido "Pago" devolve os itens ao estoque (1.9).
 
+Hipóteses
+    - Se um produto de um pedido pago foi removido do catálogo depois da
+      venda, não há estoque para onde devolvê-lo: o cancelamento continua
+      valendo (RF09) e só os itens ainda existentes voltam ao estoque.
+
 Assertivas estruturais
     - Não existem dois pedidos com o mesmo número.
     - Todo pedido tem ao menos um item, com quantidade int > 0.
@@ -47,6 +52,12 @@ Encapsulamento (RNF03)
     - Funções internas do diagrama (3.2, 3.4, 3.6, 3.9) e auxiliares (_)
       não são exportadas.
     - As funções de consulta devolvem CÓPIAS dos pedidos.
+
+Restrições
+    - As auxiliares _normalizar_cpf, _texto_valido e _inteiro_valido se
+      repetem em outros módulos de propósito: pelo RNF03 um módulo só pode
+      chamar as funções do Diagrama de Funções de Acesso, e nenhuma delas
+      está lá. Compartilhá-las exigiria um módulo utilitário novo no diagrama.
 """
 
 import copy
@@ -195,8 +206,11 @@ def CriarPedido(cpf):
         Retorno: dict com o pedido criado
                  | {} se o cliente não existe, o carrinho está vazio ou
                    algum item tem estoque insuficiente
-    AS: se retornou pedido, ele está em _pedidos e em pedidos.json;
-        se {}, nada foi criado.
+    AE: cpf é str; o carrinho do cliente (2.8) não está vazio e todo item
+        tem quantidade <= estoque (1.7).
+    AS: se retornou pedido, ele está em _pedidos e em pedidos.json com
+        número = maior número existente + 1; o estoque e o carrinho não
+        mudam; se {}, nada foi criado (sem pedido parcial, RI02).
     """
     cpf_norm = _normalizar_cpf(cpf)
     if cpf_norm is None:
@@ -242,6 +256,9 @@ def CalcularTotal(itens, frete, desconto):
         desconto (float >= 0)
         Retorno: total calculado, arredondado em 2 casas
                  | 0.0 se a lista é vazia/inválida, ou frete ou desconto negativos
+    AE: itens é lista não vazia de dicts com preco >= 0 e quantidade int > 0;
+        frete >= 0; desconto >= 0.
+    AS: _pedidos não é alterado; total = max(subtotal - desconto, 0) + frete.
     """
     if not isinstance(itens, list) or not itens:
         return 0.0
@@ -283,13 +300,18 @@ def SimularPagamento(pedido, forma):
                           pagamento, forma inválida (o pedido continua
                           aguardando), pagamento recusado ou estoque
                           insuficiente (o pedido é cancelado)
-    AS: a baixa de estoque ocorre uma única vez por pedido.
+    AE: pedido é dict com "numero" de um pedido "Aguardando pagamento";
+        forma é "pix", "cartao" ou "boleto".
+    AS: se True, status "Pago" (3.4), estoque baixado (1.8) uma única vez
+        por item e carrinho vazio (2.10); se recusado, status "Cancelado" e
+        estoque inalterado; se forma inválida, nada muda.
     """
     if not isinstance(pedido, dict):
         return False
 
-    registro = _localizar_pedido(pedido.get("numero"))
-    if registro is None or registro["status"] != _STATUS_AGUARDANDO:
+    num = pedido.get("numero")
+    registro = BuscarPedido(num)
+    if not registro or registro["status"] != _STATUS_AGUARDANDO:
         return False
 
     aprovado = _pagamento_aprovado(forma, registro["total"])
@@ -297,15 +319,13 @@ def SimularPagamento(pedido, forma):
         return False
 
     if not aprovado:
-        registro["status"] = _STATUS_CANCELADO
-        SalvarPedidosNoArq()
+        AtualizarStatus(num, _STATUS_CANCELADO)
         return False
 
     # Confere o estoque de todos os itens antes de baixar qualquer um
     for item in registro["itens"]:
         if catalogo.ConsultarEstoque(item["codigo"]) < item["quantidade"]:
-            registro["status"] = _STATUS_CANCELADO
-            SalvarPedidosNoArq()
+            AtualizarStatus(num, _STATUS_CANCELADO)
             return False
 
     baixados = []
@@ -315,13 +335,11 @@ def SimularPagamento(pedido, forma):
         else:
             for feito in baixados:                      # desfaz o que já baixou
                 catalogo.ReporEstoque(feito["codigo"], feito["quantidade"])
-            registro["status"] = _STATUS_CANCELADO
-            SalvarPedidosNoArq()
+            AtualizarStatus(num, _STATUS_CANCELADO)
             return False
 
     clientes.EsvaziarCarrinho(registro["cpf"])
-    registro["status"] = _STATUS_PAGO
-    SalvarPedidosNoArq()
+    AtualizarStatus(num, _STATUS_PAGO)
     return True
 
 
@@ -337,6 +355,10 @@ def AtualizarStatus(num, status):
         num (int), status (str)
         Retorno: True -> status alterado
                  False -> pedido inexistente ou status fora dos três permitidos
+    AE: num é int de um pedido existente; status é um dos três permitidos
+        (maiúsculas e espaços nas pontas são ignorados).
+    AS: se True, o pedido tem o novo status e pedidos.json foi gravado;
+        se False, nada mudou.
     """
     novo_status = _status_canonico(status)
     if novo_status is None:
@@ -363,18 +385,21 @@ def CancelarPedido(num):
         num (int)
         Retorno: True  -> pedido cancelado
                  False -> pedido inexistente ou já cancelado
+    AE: num é int de um pedido "Aguardando pagamento" ou "Pago".
+    AS: se True, status "Cancelado" (3.4); se o pedido estava pago, cada
+        item ainda existente no catálogo voltou ao estoque (1.9) — itens de
+        produtos removidos são ignorados (ver Hipóteses); se False, nada
+        mudou. O cancelamento vale sempre para o pedido inteiro (RI03).
     """
-    registro = _localizar_pedido(num)
-    if registro is None or registro["status"] == _STATUS_CANCELADO:
+    registro = BuscarPedido(num)
+    if not registro or registro["status"] == _STATUS_CANCELADO:
         return False
 
     if registro["status"] == _STATUS_PAGO:
         for item in registro["itens"]:
             catalogo.ReporEstoque(item["codigo"], item["quantidade"])
 
-    registro["status"] = _STATUS_CANCELADO
-    SalvarPedidosNoArq()
-    return True
+    return AtualizarStatus(num, _STATUS_CANCELADO)
 
 
 # --------------------------------------------------------------------------
@@ -387,6 +412,8 @@ def BuscarPedido(num):
     Acoplamento:
         num (int)
         Retorno: dict com uma cópia do pedido | {} se não existe
+    AE: num é int.
+    AS: _pedidos não é alterado; o dict devolvido é uma cópia.
     """
     registro = _localizar_pedido(num)
     if registro is None:
@@ -406,6 +433,9 @@ def ListarPedidos(status):
         status (str)
         Retorno: lista de cópias dos pedidos | [] se nenhum corresponde
                  ou o status é inválido
+    AE: status é str ("" significa todos).
+    AS: _pedidos não é alterado; a lista vem na ordem de criação (número
+        crescente) e contém cópias.
     """
     if not isinstance(status, str):
         return []
@@ -431,6 +461,9 @@ def ListarPedidosCliente(cpf):
         cpf (str)
         Retorno: lista de cópias dos pedidos | [] se o cliente não tem
                  pedidos ou o CPF é inválido
+    AE: cpf é str (pontos e traço são ignorados).
+    AS: _pedidos não é alterado; a lista contém cópias, da data mais
+        recente para a mais antiga.
     """
     cpf_norm = _normalizar_cpf(cpf)
     if cpf_norm is None:
@@ -451,6 +484,9 @@ def SalvarPedidosNoArq():
                alteração.
     Acoplamento:
         Retorno: True -> salvou | False -> erro de escrita
+    AE: _pedidos respeita as assertivas estruturais do módulo.
+    AS: se True, pedidos.json contém exatamente _pedidos;
+        se False, _pedidos continua igual em memória.
     """
     try:
         os.makedirs(os.path.dirname(_CAMINHO_ARQUIVO), exist_ok=True)

@@ -28,6 +28,12 @@ Encapsulamento (RNF03)
 - Os dados ficam em variáveis com prefixo "_" e não são exportados.
 - __all__ lista apenas as funções públicas de acesso (2.3 a 2.10).
 - Funções internas do diagrama (2.1, 2.2, 2.11) e auxiliares (_) não são exportadas.
+
+Restrições
+    - As auxiliares _normalizar_cpf, _texto_valido e _inteiro_valido se
+      repetem em outros módulos de propósito: pelo RNF03 um módulo só pode
+      chamar as funções do Diagrama de Funções de Acesso, e nenhuma delas
+      está lá. Compartilhá-las exigiria um módulo utilitário novo no diagrama.
 """
 
 import copy
@@ -140,6 +146,9 @@ def ValidarDados(c):
     Acoplamento:
         c (dict)
         Retorno: True -> válido | False -> caso contrário
+    AE: nenhuma (c pode ser de qualquer tipo).
+    AS: _clientes não é alterado; True garante que c tem os cinco campos
+        obrigatórios com valores válidos.
     """
     if not isinstance(c, dict):
         return False
@@ -172,6 +181,8 @@ def VerificarExistenciaCpf(cpf):
     Acoplamento:
         cpf (str)
         Retorno: True -> encontrado | False -> caso contrário
+    AE: cpf é str (pontos e traço são ignorados).
+    AS: _clientes não é alterado.
     """
     return _localizar_cliente_por_cpf(cpf) is not None
 
@@ -188,6 +199,9 @@ def CadastrarCliente(c):
         c (dict) com cpf, nome, email, senha, endereco
         Retorno: True  -> cliente cadastrado
                  False -> dados inválidos ou CPF/e-mail já existente
+    AE: c passa em ValidarDados (2.1); CPF e e-mail ainda não cadastrados.
+    AS: se True, o cliente está em _clientes e em clientes.json com perfil
+        "cliente" e carrinho vazio; se False, nada foi alterado.
     """
     if not ValidarDados(c):
         return False
@@ -225,6 +239,8 @@ def AutenticarCliente(email, senha):
     Acoplamento:
         email (str), senha (str)
         Retorno: dict do usuário (sem "senha") | {} se credenciais inválidas
+    AE: email e senha são str não vazias.
+    AS: _clientes não é alterado; o dict devolvido é uma cópia sem a senha.
     """
     if not _texto_valido(email) or not _texto_valido(senha):
         return {}
@@ -255,6 +271,11 @@ def AdicionarItemCarrinho(cpf, codigo, qtd):
         Retorno: True  -> item adicionado/atualizado
                  False -> cliente ou produto inexistente, qtd <= 0 ou
                           estoque insuficiente para a quantidade total
+    AE: cliente e produto existem; qtd é int > 0; quantidade já no
+        carrinho + qtd <= estoque (1.7).
+    AS: se True, o carrinho tem o item com a quantidade somada e
+        clientes.json foi gravado; se False, o carrinho não mudou.
+        O estoque nunca é alterado por esta função.
     """
     cliente = _localizar_cliente_por_cpf(cpf)
     if cliente is None:
@@ -304,6 +325,9 @@ def AlterarQuantidadeItem(cpf, codigo, qtd):
         Retorno: True  -> quantidade alterada
                  False -> cliente inexistente, item não está no carrinho,
                           qtd <= 0 ou estoque insuficiente
+    AE: o item já está no carrinho; qtd é int > 0 e qtd <= estoque (1.7).
+    AS: se True, a quantidade do item passa a ser qtd e clientes.json foi
+        gravado; se False, o carrinho não mudou.
     """
     cliente = _localizar_cliente_por_cpf(cpf)
     if cliente is None or not _texto_valido(codigo):
@@ -342,6 +366,9 @@ def RemoverItemCarrinho(cpf, codigo):
         cpf (str), codigo (str)
         Retorno: True  -> item removido
                  False -> cliente inexistente ou item não está no carrinho
+    AE: o cliente existe e o item está no carrinho.
+    AS: se True, o item não está mais no carrinho e clientes.json foi
+        gravado; se False, o carrinho não mudou.
     """
     cliente = _localizar_cliente_por_cpf(cpf)
     if cliente is None or not _texto_valido(codigo):
@@ -370,21 +397,32 @@ def ObterCarrinho(cpf):
         cpf (str)
         Retorno: [{"codigo": str, "nome": str, "preco": float, "quantidade": int}, ...]
                  | [] se carrinho vazio ou cliente inexistente
+    AE: cpf é str.
+    AS: nome e preço vêm do catálogo (1.2) no momento da chamada. Itens cujo
+        produto foi removido do catálogo saem do carrinho e clientes.json é
+        gravado, mantendo a assertiva estrutural "todo item no carrinho
+        possui código existente no catálogo". Fora isso, nada é alterado.
     """
     cliente = _localizar_cliente_por_cpf(cpf)
     if cliente is None:
         return []
 
     itens = []
+    mantidos = []
     for item in cliente["carrinho"]:
         produto = catalogo.BuscarProduto(item["codigo"])
         if produto:
+            mantidos.append(item)
             itens.append({
                 "codigo": item["codigo"],
                 "nome": produto["nome"],
                 "preco": float(produto["preco"]),
                 "quantidade": item["quantidade"],
             })
+
+    if len(mantidos) != len(cliente["carrinho"]):
+        cliente["carrinho"] = mantidos
+        SalvarClientesNoArq()
     return itens
 
 
@@ -399,6 +437,9 @@ def CalcularSubtotal(cpf):
     Acoplamento:
         cpf (str)
         Retorno: float (subtotal) | 0.0
+    AE: cpf é str.
+    AS: _clientes não é alterado; subtotal = soma de preco * quantidade
+        dos itens devolvidos por ObterCarrinho (2.8), com 2 casas.
     """
     itens = ObterCarrinho(cpf)
     if not itens:
@@ -418,6 +459,9 @@ def EsvaziarCarrinho(cpf):
     Acoplamento:
         cpf (str)
         Retorno: True -> esvaziou | False -> cliente não existe
+    AE: o cliente existe.
+    AS: se True, o carrinho do cliente é [] e clientes.json foi gravado;
+        se False, nada foi alterado.
     """
     cliente = _localizar_cliente_por_cpf(cpf)
     if cliente is None:
@@ -438,6 +482,9 @@ def SalvarClientesNoArq():
                após cada alteração.
     Acoplamento:
         Retorno: True -> salvou | False -> erro de escrita
+    AE: _clientes respeita as assertivas estruturais do módulo.
+    AS: se True, clientes.json contém exatamente _clientes;
+        se False, _clientes continua igual em memória.
     """
     try:
         os.makedirs(os.path.dirname(_CAMINHO_ARQUIVO), exist_ok=True)
