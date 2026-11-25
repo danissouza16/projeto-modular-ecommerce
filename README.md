@@ -10,11 +10,11 @@ Brenno Távora Barbosa · Daniel Santana Souza
 
 | Nº | Módulo | Arquivo | Arquivo de dados | Responsável | Status |
 |---|---|---|---|---|---|
-| — | Main | `main.py` | — | grupo | 🟡 login, catálogo e carrinho (perfis admin/cliente) |
-| 1 | CatalogoProdutos | `modulos/catalogo_produtos.py` | `dados/produtos.json` | Daniel | ✅ pronto (34 testes) |
-| 2 | GerenciadorClientes | `modulos/gerenciador_clientes.py` | `dados/clientes.json` | Pedro | ✅ pronto (33 testes) |
-| 3 | ProcessadorPedidos | `modulos/processador_pedidos.py` | `dados/pedidos.json` | Brenno e Guilherme | ✅ pronto (35 testes) |
-| 4 | RelatoriosVendas | `modulos/relatorios_vendas.py` | — | Matheus | a fazer |
+| — | Main | `main.py` | — | grupo | ✅ menu, catálogo, carrinho, compra e relatórios (perfis admin/cliente) |
+| 1 | CatalogoProdutos | `modulos/catalogo_produtos.py` | `dados/produtos.json` | Daniel | ✅ pronto (36 testes) |
+| 2 | GerenciadorClientes | `modulos/gerenciador_clientes.py` | `dados/clientes.json` | Pedro | ✅ pronto (34 testes) |
+| 3 | ProcessadorPedidos | `modulos/processador_pedidos.py` | `dados/pedidos.json` | Brenno e Guilherme | ✅ pronto (36 testes) |
+| 4 | RelatoriosVendas | `modulos/relatorios_vendas.py` | — | Matheus | ✅ pronto (37 testes) |
 
 Dependências (sem ciclos): Main → todos · Clientes, Pedidos e Relatórios → Catálogo ·
 Pedidos → Clientes · Relatórios → Pedidos.
@@ -22,20 +22,27 @@ Pedidos → Clientes · Relatórios → Pedidos.
 ## Estrutura
 
 ```
-loja/
+projeto-modular-ecommerce/
 ├── main.py                           # ponto de entrada (único módulo que usa input/print)
 ├── modulos/                          # módulos de negócio
-│   ├── init.py
-│   ├── catalogo_produtos.py
-│   └── gerenciador_clientes.py
+│   ├── __init__.py
+│   ├── catalogo_produtos.py          # 1 · CatalogoProdutos
+│   ├── gerenciador_clientes.py       # 2 · GerenciadorClientes
+│   ├── processador_pedidos.py        # 3 · ProcessadorPedidos
+│   └── relatorios_vendas.py          # 4 · RelatoriosVendas
 ├── testes/                           # um módulo testador por módulo
-│   ├── init.py
+│   ├── __init__.py
 │   ├── teste_catalogo_produtos.py
-│   └── teste_gerenciador_clientes.py
+│   ├── teste_gerenciador_clientes.py
+│   ├── teste_processador_pedidos.py
+│   └── teste_relatorios_vendas.py
 └── dados/                            # arquivos JSON (cada um só é lido/gravado pelo seu módulo)
-├── produtos.json
-└── clientes.json
+    ├── produtos.json
+    ├── clientes.json                 # inclui o administrador pré-cadastrado (RNF02)
+    └── pedidos.json
 ```
+
+Relatórios exportados (4.6) são gravados na pasta de onde a aplicação é executada.
 
 ## Como rodar a aplicação
 
@@ -48,10 +55,11 @@ python main.py
 Sempre a partir da pasta raiz do repositório:
 
 ```bash
-python -m unittest discover -s testes -p "teste_*.py" -v      # todos os módulos (102 testes)
-python -m unittest testes.teste_catalogo_produtos -v           # só catálogo (34 testes)
-python -m unittest testes.teste_gerenciador_clientes -v        # só clientes (33 testes)
-python -m unittest testes.teste_processador_pedidos -v         # só pedidos (35 testes)
+python -m unittest discover -s testes -p "teste_*.py" -v      # todos os módulos (143 testes)
+python -m unittest testes.teste_catalogo_produtos -v           # só catálogo (36 testes)
+python -m unittest testes.teste_gerenciador_clientes -v        # só clientes (34 testes)
+python -m unittest testes.teste_processador_pedidos -v         # só pedidos (36 testes)
+python -m unittest testes.teste_relatorios_vendas -v           # só relatórios (37 testes)
 ```
 
 ## Regras do projeto (resumo do T2 e das orientações da disciplina)

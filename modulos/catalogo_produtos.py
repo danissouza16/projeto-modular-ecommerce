@@ -30,6 +30,7 @@ Encapsulamento (RNF03)
 """
 
 import json
+import math
 import os
 
 __all__ = [
@@ -67,8 +68,10 @@ def _texto_valido(valor):
 
 
 def _numero_valido(valor):
-    """True se valor é int ou float (bool não conta como número)."""
-    return isinstance(valor, (int, float)) and not isinstance(valor, bool)
+    """True se valor é int ou float finito (bool, NaN e infinito não contam)."""
+    if isinstance(valor, bool) or not isinstance(valor, (int, float)):
+        return False
+    return math.isfinite(valor)
 
 
 def _inteiro_valido(valor):
@@ -146,7 +149,9 @@ def BuscarProduto(codigo):
     Acoplamento:
         codigo (str)
         Retorno: dict com uma cópia do produto | {} se o código não existe
-    AS: o catálogo não é alterado.
+    AE: codigo é str (espaços nas pontas são ignorados).
+    AS: o catálogo não é alterado; o dict devolvido é uma cópia, e alterá-lo
+        não afeta _produtos.
     """
     produto = _localizar_produto(codigo)
     if produto is None:
@@ -166,6 +171,9 @@ def BuscarProdutoPorNome(nome):
         nome (str)
         Retorno: lista de cópias dos produtos encontrados |
                  [] se nenhum corresponde ou o texto é vazio
+    AE: nome é str não vazia.
+    AS: o catálogo não é alterado; todo produto devolvido contém o texto
+        no nome (ignorando maiúsculas e minúsculas).
     """
     if not _texto_valido(nome):
         return []
@@ -189,6 +197,9 @@ def ListarProdutos(categoria):
     Acoplamento:
         categoria (str)
         Retorno: lista de cópias dos produtos | [] se não houver produtos
+    AE: categoria é str ("" significa todas as categorias).
+    AS: o catálogo não é alterado; todo produto devolvido pertence à
+        categoria informada (ou a qualquer uma, se categoria == "").
     """
     if not isinstance(categoria, str):
         return []
@@ -213,7 +224,10 @@ def AtualizarProduto(codigo, campo, valor):
         codigo (str), campo (str), valor (str para textos; número > 0 para preco)
         Retorno: True  -> campo atualizado
                  False -> código inexistente, campo inválido ou valor incompatível
-    AS: se False, o produto não foi alterado.
+    AE: o produto existe; campo é nome, descricao, categoria ou preco;
+        valor é texto não vazio (campos de texto) ou número finito > 0 (preco).
+    AS: se True, só o campo informado mudou e produtos.json foi gravado;
+        se False, o produto não foi alterado.
     """
     produto = _localizar_produto(codigo)
     if produto is None:
@@ -244,6 +258,9 @@ def RemoverProduto(codigo):
     Acoplamento:
         codigo (str)
         Retorno: True -> removido | False -> código inexistente
+    AE: codigo é str de um produto cadastrado.
+    AS: se True, o produto não está mais em _produtos nem em produtos.json;
+        se False, o catálogo não foi alterado.
     """
     produto = _localizar_produto(codigo)
     if produto is None:
@@ -264,6 +281,8 @@ def ConsultarEstoque(codigo):
     Acoplamento:
         codigo (str)
         Retorno: quantidade em estoque (int >= 0) | -1 se o código não existe
+    AE: codigo é str.
+    AS: o catálogo não é alterado.
     """
     produto = _localizar_produto(codigo)
     if produto is None:
@@ -313,6 +332,7 @@ def ReporEstoque(codigo, qtd):
         codigo (str), qtd (int)
         Retorno: True  -> reposição realizada
                  False -> código inexistente ou qtd <= 0
+    AE: o produto existe e qtd é int > 0.
     AS: se True, estoque_novo = estoque_antigo + qtd; se False, não muda.
     """
     produto = _localizar_produto(codigo)
@@ -336,6 +356,9 @@ def SalvarCatalogoNoArq():
     Descrição: grava todos os produtos em produtos.json.
     Acoplamento:
         Retorno: True -> gravou | False -> erro de escrita
+    AE: _produtos respeita as assertivas estruturais do módulo.
+    AS: se True, produtos.json contém exatamente _produtos;
+        se False, _produtos continua igual em memória.
     """
     try:
         os.makedirs(os.path.dirname(_CAMINHO_ARQUIVO), exist_ok=True)
@@ -357,7 +380,9 @@ def CarregarCatalogoDoArq():
     Acoplamento:
         Retorno: lista (cópia) dos produtos carregados | [] se vazio,
                  inexistente ou ilegível
-    AS: _produtos reflete o conteúdo do arquivo.
+    AE: nenhuma (o arquivo pode existir ou não).
+    AS: _produtos reflete o conteúdo do arquivo; se o arquivo não existia,
+        ele passa a existir contendo [].
     """
     global _produtos
 

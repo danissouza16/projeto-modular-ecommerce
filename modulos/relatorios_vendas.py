@@ -25,6 +25,12 @@ Encapsulamento (RNF03)
     - __all__ lista apenas as funções de acesso (4.1 a 4.6).
     - Funções auxiliares têm prefixo "_" e não são exportadas.
     - Só são chamadas as funções 3.7, 1.2 e 1.4 dos outros módulos.
+
+Restrições
+    - As auxiliares _normalizar_cpf, _texto_valido e _inteiro_valido se
+      repetem em outros módulos de propósito: pelo RNF03 um módulo só pode
+      chamar as funções do Diagrama de Funções de Acesso, e nenhuma delas
+      está lá. Compartilhá-las exigiria um módulo utilitário novo no diagrama.
 """
 
 from datetime import datetime
@@ -52,6 +58,16 @@ _CARACTERES_PROIBIDOS_ARQUIVO = '\\/:*?"<>|'
 def _inteiro_valido(valor):
     """True se valor é int (bool não conta como inteiro)."""
     return isinstance(valor, int) and not isinstance(valor, bool)
+
+
+def _normalizar_cpf(cpf):
+    """Devolve o CPF só com dígitos se tiver 11, ou None."""
+    if not isinstance(cpf, str):
+        return None
+    digitos = "".join(ch for ch in cpf.strip() if ch.isdigit())
+    if len(digitos) != 11:
+        return None
+    return digitos
 
 
 def _converter_data(texto):
@@ -105,7 +121,9 @@ def CalcularFaturamento(inicio, fim):
         Retorno: valor faturado (float, 2 casas) |
                  0.0 se não há pedidos pagos no período, data inválida
                  ou inicio posterior a fim
-    AS: nenhum dado é alterado.
+    AE: inicio e fim são datas válidas AAAA-MM-DD com inicio <= fim.
+    AS: nenhum dado é alterado; só entram pedidos "Pago" com data no
+        período, inclusive nas duas pontas.
     """
     total = 0.0
     for pedido in _pagos_no_periodo(inicio, fim):
@@ -124,6 +142,8 @@ def CalcularTicketMedio(inicio, fim):
         inicio (str), fim (str) no formato AAAA-MM-DD
         Retorno: valor médio por pedido (float, 2 casas) |
                  0.0 se não há pedidos pagos no período ou datas inválidas
+    AE: inicio e fim são datas válidas AAAA-MM-DD com inicio <= fim.
+    AS: nenhum dado é alterado; nunca há divisão por zero.
     """
     selecionados = _pagos_no_periodo(inicio, fim)
     if len(selecionados) == 0:
@@ -151,6 +171,9 @@ def ListarMaisVendidos(n):
         Retorno: [{"codigo": str, "nome": str, "quantidade": int}, ...]
                  em ordem decrescente de quantidade |
                  [] se n <= 0, n não é int ou não há vendas
+    AE: n é int > 0.
+    AS: nenhum dado é alterado; a lista tem no máximo n itens, só conta
+        pedidos "Pago" e está em ordem decrescente de quantidade.
     """
     if not _inteiro_valido(n) or n <= 0:
         return []
@@ -188,18 +211,16 @@ def VendasPorCliente(cpf):
         cpf (str)
         Retorno: [{"numero": int, "data": str, "total": float}, ...] |
                  [] se o cliente não tem compras, não existe ou cpf inválido
+    AE: cpf é str com 11 dígitos (pontos e traço são ignorados).
+    AS: nenhum dado é alterado; só entram pedidos "Pago" do cliente.
     """
-    if not isinstance(cpf, str):
-        return []
-
-    cpf = "".join(caractere for caractere in cpf.strip() if caractere.isdigit())
-
-    if len(cpf) != 11:
+    cpf_norm = _normalizar_cpf(cpf)
+    if cpf_norm is None:
         return []
 
     vendas = []
     for pedido in _pedidos_pagos():
-        if pedido.get("cpf") == cpf:
+        if pedido.get("cpf") == cpf_norm:
             vendas.append({
                 "numero": pedido["numero"],
                 "data": pedido["data"],
@@ -219,6 +240,9 @@ def ListarEstoqueBaixo(limite):
         limite (int)
         Retorno: lista de produtos (cópias vindas de 1.4) |
                  [] se nenhum atende, limite negativo ou limite não é int
+    AE: limite é int >= 0.
+    AS: nenhum dado é alterado; todo produto devolvido tem
+        estoque <= limite.
     """
     if not _inteiro_valido(limite) or limite < 0:
         return []
@@ -244,7 +268,9 @@ def ExportarRelatorio(dados, arq):
               (sem os caracteres \\ / : * ? " < > |)
         Retorno: True  -> exportou
                  False -> lista vazia/inválida, nome inválido ou erro de escrita
-    AS: se False por validação, nenhum arquivo é criado.
+    AE: dados é lista não vazia; arq é nome de arquivo válido.
+    AS: se True, o arquivo existe com uma linha por item de dados;
+        se False por validação, nenhum arquivo é criado.
     """
     if not isinstance(dados, list) or len(dados) == 0:
         return False

@@ -8,18 +8,24 @@ Objetivo
 
 Controle de acesso por perfil (RNF02)
 - Autenticação via 2.4 AutenticarCliente(email, senha) retorna o perfil.
-- Administrador ("admin"): gerencia o catálogo e o estoque (e relatórios quando
-      o módulo 4 for integrado).
-- Cliente ("cliente"): consulta o catálogo e gerencia seu carrinho
-      (compras/pedidos entram quando o módulo 3 for integrado).
+- Administrador ("admin"): gerencia o catálogo e o estoque e gera os
+      relatórios gerenciais (fluxo_relatorios).
+- Cliente ("cliente"): consulta o catálogo, gerencia o carrinho, finaliza
+      compras e consulta/cancela os próprios pedidos (fluxo_compra).
 
 Relações (Diagrama de Arquitetura)
     Cliente de: CatalogoProdutos (1.1..1.6, 1.9),
-                GerenciadorClientes (2.3..2.9)
+                GerenciadorClientes (2.3..2.9),
+                ProcessadorPedidos (3.1, 3.3, 3.5, 3.8),
+                RelatoriosVendas (4.1..4.6)
 """
 
 from modulos import catalogo_produtos as catalogo
 from modulos import gerenciador_clientes as clientes
+from modulos import processador_pedidos as pedidos
+from modulos import relatorios_vendas as relatorios
+
+_FORMAS_PAGAMENTO = ("pix", "cartao", "boleto")
 
 
 # --------------------------------------------------------------------------
@@ -75,6 +81,44 @@ def _mostrar_carrinho(cpf):
 
 def _resultado(ok, msg_ok, msg_erro):
     print(msg_ok if ok else msg_erro)
+
+
+def _informar_estoque(cpf, codigo):
+    """RF05: depois de uma recusa no carrinho, informa a quantidade disponível
+    do produto (1.2) e quanto dele já está no carrinho (2.8)."""
+    produto = catalogo.BuscarProduto(codigo)
+    if not produto:
+        print("  Produto não encontrado no catálogo.")
+        return
+    no_carrinho = 0
+    for item in clientes.ObterCarrinho(cpf):
+        if item["codigo"] == produto["codigo"]:
+            no_carrinho = item["quantidade"]
+    print(f"  Quantidade disponível de {produto['nome']}: {produto['estoque']} "
+          f"(no seu carrinho: {no_carrinho}).")
+
+
+def _mostrar_pedido(p):
+    print(f"  Pedido nº {p['numero']} - {p['data']} - {p['status']}")
+    for item in p["itens"]:
+        print(f"      [{item['codigo']}] {item['nome']} - "
+              f"{item['quantidade']}x R$ {item['preco']:.2f}")
+    print(f"      Subtotal R$ {p['subtotal']:.2f} + frete R$ {p['frete']:.2f} "
+          f"- desconto R$ {p['desconto']:.2f} = total R$ {p['total']:.2f}")
+
+
+def _ler_forma_pagamento():
+    """Lê a forma de pagamento; devolve None se o usuário desistir (Enter)."""
+    while True:
+        forma = _ler_texto("Forma de pagamento (pix, cartao, boleto; "
+                           "Enter para pagar depois): ").lower()
+        if forma == "":
+            return None
+        if forma == "cartão":
+            forma = "cartao"
+        if forma in _FORMAS_PAGAMENTO:
+            return forma
+        print("Forma de pagamento inválida.")
 
 
 # --------------------------------------------------------------------------
@@ -209,16 +253,20 @@ def fluxo_carrinho(cpf):
     def _adicionar():
         codigo = _ler_texto("Código do produto: ")
         qtd = _ler_inteiro("Quantidade: ")
-        _resultado(clientes.AdicionarItemCarrinho(cpf, codigo, qtd),
-                   "Item adicionado ao carrinho.",
-                   "Não foi possível adicionar (produto inexistente, quantidade inválida ou estoque insuficiente).")
+        if clientes.AdicionarItemCarrinho(cpf, codigo, qtd):
+            print("Item adicionado ao carrinho.")
+            return
+        print("Não foi possível adicionar (produto inexistente, quantidade inválida ou estoque insuficiente).")
+        _informar_estoque(cpf, codigo)
 
     def _alterar_qtd():
         codigo = _ler_texto("Código do produto: ")
         qtd = _ler_inteiro("Nova quantidade: ")
-        _resultado(clientes.AlterarQuantidadeItem(cpf, codigo, qtd),
-                   "Quantidade atualizada.",
-                   "Não foi possível alterar (item fora do carrinho, quantidade <= 0 ou estoque insuficiente).")
+        if clientes.AlterarQuantidadeItem(cpf, codigo, qtd):
+            print("Quantidade atualizada.")
+            return
+        print("Não foi possível alterar (item fora do carrinho, quantidade <= 0 ou estoque insuficiente).")
+        _informar_estoque(cpf, codigo)
 
     def _remover():
         codigo = _ler_texto("Código do produto: ")
@@ -237,9 +285,150 @@ def fluxo_carrinho(cpf):
     ])
 
 
+def fluxo_compra(cpf):
+    """Finaliza a compra (3.1 e 3.3) e permite consultar e cancelar os pedidos
+    do cliente (3.8 e 3.5). Só pedidos do próprio cliente podem ser pagos
+    ou cancelados."""
+
+    def _pedidos_do_cliente(status=None):
+        lista = pedidos.ListarPedidosCliente(cpf)
+        if status is None:
+            return lista
+        return [p for p in lista if p["status"] == status]
+
+    def _pagar(pedido):
+        forma = _ler_forma_pagamento()
+        if forma is None:
+            print(f"Pedido nº {pedido['numero']} continua aguardando pagamento.")
+            return
+        if pedidos.SimularPagamento(pedido, forma):
+            print(f"Pagamento aprovado! Pedido nº {pedido['numero']} pago.")
+            return
+        atual = [p for p in _pedidos_do_cliente() if p["numero"] == pedido["numero"]]
+        if atual and atual[0]["status"] == "Cancelado":
+            print(f"Pagamento recusado ({forma}). Pedido nº {pedido['numero']} "
+                  "cancelado; o carrinho foi mantido para uma nova tentativa.")
+        else:
+            print("Não foi possível processar o pagamento.")
+
+    def _escolher_pedido(candidatos, acao):
+        if not candidatos:
+            print(f"  Nenhum pedido disponível para {acao}.")
+            return None
+        for p in candidatos:
+            _mostrar_pedido(p)
+        num = _ler_inteiro(f"Número do pedido para {acao}: ")
+        for p in candidatos:
+            if p["numero"] == num:
+                return p
+        print("Pedido não encontrado entre os seus pedidos.")
+        return None
+
+    def _finalizar():
+        pendentes = _pedidos_do_cliente("Aguardando pagamento")
+        if pendentes:
+            print(f"Você já tem o pedido nº {pendentes[0]['numero']} aguardando "
+                  "pagamento. Pague ou cancele esse pedido antes de gerar outro.")
+            return
+        _mostrar_carrinho(cpf)
+        pedido = pedidos.CriarPedido(cpf)
+        if not pedido:
+            print("Não foi possível gerar o pedido (carrinho vazio ou estoque insuficiente).")
+            for item in clientes.ObterCarrinho(cpf):
+                _informar_estoque(cpf, item["codigo"])
+            return
+        print("Pedido gerado:")
+        _mostrar_pedido(pedido)
+        _pagar(pedido)
+
+    def _pagar_pendente():
+        pedido = _escolher_pedido(_pedidos_do_cliente("Aguardando pagamento"), "pagar")
+        if pedido:
+            _pagar(pedido)
+
+    def _meus_pedidos():
+        lista = _pedidos_do_cliente()
+        if not lista:
+            print("  Você ainda não tem pedidos.")
+        for p in lista:
+            _mostrar_pedido(p)
+
+    def _cancelar():
+        cancelaveis = [p for p in _pedidos_do_cliente() if p["status"] != "Cancelado"]
+        pedido = _escolher_pedido(cancelaveis, "cancelar")
+        if pedido:
+            _resultado(pedidos.CancelarPedido(pedido["numero"]),
+                       f"Pedido nº {pedido['numero']} cancelado.",
+                       "Não foi possível cancelar o pedido.")
+
+    _executar_menu("Compras e Pedidos", [
+        ("Finalizar compra (gerar pedido e pagar)", _finalizar),
+        ("Pagar pedido pendente", _pagar_pendente),
+        ("Meus pedidos", _meus_pedidos),
+        ("Cancelar pedido", _cancelar),
+    ])
+
+
+def fluxo_relatorios():
+    """Disponível só para o administrador: gera os relatórios (4.1 a 4.5)
+    e oferece a exportação para arquivo (4.6)."""
+
+    def _oferecer_exportacao(dados):
+        if not dados:
+            return
+        if _ler_texto("Exportar para arquivo? (s/n): ").lower() != "s":
+            return
+        arq = _ler_texto("Nome do arquivo (ex.: relatorio.txt): ")
+        _resultado(relatorios.ExportarRelatorio(dados, arq),
+                   f"Relatório exportado para {arq}.",
+                   "Não foi possível exportar (nome inválido ou erro de escrita).")
+
+    def _por_periodo(titulo, funcao):
+        inicio = _ler_texto("Data inicial (AAAA-MM-DD): ")
+        fim = _ler_texto("Data final (AAAA-MM-DD): ")
+        valor = funcao(inicio, fim)
+        print(f"  {titulo} de {inicio} a {fim}: R$ {valor:.2f}")
+        if valor == 0.0:
+            print("  (sem pedidos pagos no período, ou datas inválidas)")
+        _oferecer_exportacao([{"relatorio": titulo, "inicio": inicio,
+                               "fim": fim, "valor": valor}])
+
+    def _mais_vendidos():
+        ranking = relatorios.ListarMaisVendidos(_ler_inteiro("Quantos produtos (n)? "))
+        if not ranking:
+            print("  Nenhuma venda encontrada (ou n inválido).")
+        for pos, item in enumerate(ranking, start=1):
+            print(f"  {pos}º [{item['codigo']}] {item['nome']} - {item['quantidade']} un.")
+        _oferecer_exportacao(ranking)
+
+    def _vendas_por_cliente():
+        vendas = relatorios.VendasPorCliente(_ler_texto("CPF do cliente: "))
+        if not vendas:
+            print("  Nenhuma compra paga para esse CPF.")
+        for v in vendas:
+            print(f"  Pedido nº {v['numero']} - {v['data']} - R$ {v['total']:.2f}")
+        _oferecer_exportacao(vendas)
+
+    def _estoque_baixo():
+        produtos = relatorios.ListarEstoqueBaixo(_ler_inteiro("Limite de estoque: "))
+        _mostrar_lista(produtos)
+        _oferecer_exportacao(produtos)
+
+    _executar_menu("Relatórios Gerenciais", [
+        ("Faturamento por período",
+         lambda: _por_periodo("Faturamento", relatorios.CalcularFaturamento)),
+        ("Ticket médio por período",
+         lambda: _por_periodo("Ticket médio", relatorios.CalcularTicketMedio)),
+        ("Produtos mais vendidos", _mais_vendidos),
+        ("Vendas por cliente", _vendas_por_cliente),
+        ("Produtos com estoque baixo", _estoque_baixo),
+    ])
+
+
 def _sessao_administrador():
     _executar_menu("Menu Administrador", [
         ("Catálogo e Estoque", lambda: fluxo_catalogo("admin")),
+        ("Relatórios Gerenciais", fluxo_relatorios),
     ])
 
 
@@ -248,6 +437,7 @@ def _sessao_cliente(usuario):
     _executar_menu(f"Menu Cliente ({usuario['nome']})", [
         ("Consultar Catálogo", lambda: fluxo_catalogo("cliente")),
         ("Meu Carrinho", lambda: fluxo_carrinho(cpf)),
+        ("Compras e Pedidos", lambda: fluxo_compra(cpf)),
     ])
 
 
