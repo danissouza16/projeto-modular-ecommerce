@@ -18,7 +18,8 @@ estão no Diagrama de Funções de Acesso (ex.: Clientes usa só 1.2 e 1.7 do Ca
 
 ## Regras obrigatórias da disciplina
 
-- **Proibido criar classes.** Só funções. (Herdar de `unittest.TestCase` no testador é permitido.)
+- **Proibido criar classes**, inclusive nos testadores. Só funções. Os testes usam
+  `unittest.FunctionTestCase` através de `testes/suite_funcoes.py` (ver Testes).
 - Dados do módulo em lista de dicionários com `_` no nome (ex.: `_produtos`); `__all__`
   lista apenas as funções de acesso; auxiliares internas começam com `_`.
 - Nomes das funções exatamente como no T2 (`CadastrarProduto`, `ObterCarrinho`, ...),
@@ -32,7 +33,8 @@ estão no Diagrama de Funções de Acesso (ex.: Clientes usa só 1.2 e 1.7 do Ca
 ## Testes (TDD)
 
 - Um testador por módulo em `testes/teste_<modulo>.py`, cobrindo todos os casos da
-  seção 5 do T2, com `test_NN_...` e `print("x.y Cn - descrição")`; casos a mais
+  seção 5 do T2: cada caso é uma função `caso_x_y_NN_...` com `print("x.y Cn - descrição")`,
+  e a lista `GRUPOS` define a ordem (C1, C2, ...) e a preparação de cada grupo; casos a mais
   como `Cn (extra)`. O Main tem `testes/teste_main.py` (casos M.x, input simulado,
   módulos reais em pasta temporária).
 - Testes usam pasta temporária e nunca alteram os arquivos reais de `dados/`
