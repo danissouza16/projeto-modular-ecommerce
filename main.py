@@ -14,10 +14,16 @@ Controle de acesso por perfil (RNF02)
       compras e consulta/cancela os próprios pedidos (fluxo_compra).
 
 Relações (Diagrama de Arquitetura)
-    Cliente de: CatalogoProdutos (1.1..1.6, 1.9),
-                GerenciadorClientes (2.3..2.9),
-                ProcessadorPedidos (3.1, 3.3, 3.5, 3.8),
+    Cliente de: CatalogoProdutos (1.1..1.6, 1.9, 1.10),
+                GerenciadorClientes (2.3..2.9, 2.11),
+                ProcessadorPedidos (3.1, 3.3, 3.5, 3.8, 3.9),
                 RelatoriosVendas (4.1..4.6)
+
+Persistência (só entre uma execução e outra)
+- Ao iniciar, cada módulo lê o seu arquivo uma única vez (na importação).
+- Durante a execução os dados ficam só na memória dos módulos.
+- Ao encerrar, menu() grava os três arquivos de uma vez (1.10, 2.11, 3.9),
+  inclusive se o programa for interrompido com Ctrl+C.
 """
 
 from modulos import catalogo_produtos as catalogo
@@ -441,7 +447,46 @@ def _sessao_cliente(usuario):
     ])
 
 
+def _gravar_dados():
+    """
+    A) Descrição: grava produtos, clientes (com carrinhos) e pedidos nos
+       arquivos, uma única vez, ao encerrar o programa.
+    B) Acoplamento:
+        Retorno: True -> os três arquivos gravados | False -> algum falhou
+    C) Condições de acoplamento:
+        AE: o programa está sendo encerrado.
+        AS: se True, os arquivos refletem tudo o que foi feito na execução.
+    """
+    resultados = [
+        ("produtos.json", catalogo.SalvarCatalogoNoArq()),
+        ("clientes.json", clientes.SalvarClientesNoArq()),
+        ("pedidos.json", pedidos.SalvarPedidosNoArq()),
+    ]
+    falhas = [nome for nome, gravou in resultados if not gravou]
+    if falhas:
+        print("Atenção: não foi possível gravar " + ", ".join(falhas) + ".")
+        return False
+    print("Dados gravados.")
+    return True
+
+
 def menu():
+    """
+    A) Descrição: exibe o menu inicial, conduz login ou cadastro e, após a
+       autenticação, as opções do perfil. Ao sair (opção 0 ou Ctrl+C), grava
+       todos os dados nos arquivos.
+    B) Acoplamento: sem parâmetros; sem retorno.
+    C) Condições de acoplamento:
+        AE: os módulos já carregaram seus arquivos na importação.
+        AS: os arquivos foram gravados uma vez, no encerramento.
+    """
+    try:
+        _menu_inicial()
+    finally:
+        _gravar_dados()
+
+
+def _menu_inicial():
     while True:
         print("\n=== Loja Virtual ===")
         print("1 - Entrar (Login)")
@@ -466,4 +511,7 @@ def menu():
 
 
 if __name__ == "__main__":
-    menu()
+    try:
+        menu()
+    except (KeyboardInterrupt, EOFError):
+        print("\nPrograma encerrado.")

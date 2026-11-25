@@ -8,8 +8,15 @@ Objetivo
     criar ou alterar pedidos, e o único que lê e grava o arquivo pedidos.json
     (RNF01).
 
+Persistência (critério da disciplina: só entre uma execução e outra)
+    - Na inicialização (importação do módulo) o arquivo é lido uma única vez.
+    - Durante a execução os dados ficam só na memória; nenhuma função de
+      acesso grava o arquivo.
+    - Ao encerrar o programa, o Main chama SalvarPedidosNoArq (3.9), que grava
+      tudo de uma vez.
+
 Relações (Diagrama de Arquitetura)
-    Servidor de: Main (3.1, 3.3, 3.5, 3.8), RelatoriosVendas (3.7)
+    Servidor de: Main (3.1, 3.3, 3.5, 3.8, 3.9), RelatoriosVendas (3.7)
     Cliente de:  CatalogoProdutos (1.7, 1.8, 1.9),
                  GerenciadorClientes (2.8, 2.10)
 
@@ -48,8 +55,8 @@ Assertivas estruturais
 Encapsulamento (RNF03)
     - Os dados ficam em variáveis com prefixo "_" e não são exportados.
     - __all__ lista apenas as funções chamadas por outros módulos
-      (3.1, 3.3, 3.5, 3.7 e 3.8).
-    - Funções internas do diagrama (3.2, 3.4, 3.6, 3.9) e auxiliares (_)
+      (3.1, 3.3, 3.5, 3.7 e 3.8) e a 3.9, que o Main chama ao encerrar.
+    - Funções internas do diagrama (3.2, 3.4, 3.6) e auxiliares (_)
       não são exportadas.
     - As funções de consulta devolvem CÓPIAS dos pedidos.
 
@@ -74,6 +81,7 @@ __all__ = [
     "CancelarPedido",         # 3.5
     "ListarPedidos",          # 3.7
     "ListarPedidosCliente",   # 3.8
+    "SalvarPedidosNoArq",     # 3.9 (chamada pelo Main ao encerrar)
 ]
 
 # --------------------------------------------------------------------------
@@ -240,7 +248,6 @@ def CriarPedido(cpf):
         "status": _STATUS_AGUARDANDO,
     }
     _pedidos.append(pedido)
-    SalvarPedidosNoArq()
     return copy.deepcopy(pedido)
 
 
@@ -373,7 +380,6 @@ def AtualizarStatus(num, status):
         return False
 
     registro["status"] = novo_status
-    SalvarPedidosNoArq()
     return True
 
 
@@ -483,13 +489,13 @@ def ListarPedidosCliente(cpf):
 
 
 # --------------------------------------------------------------------------
-# 3.9 SalvarPedidosNoArq (interna)
+# 3.9 SalvarPedidosNoArq (chamada pelo Main ao encerrar o programa)
 # --------------------------------------------------------------------------
 
 def SalvarPedidosNoArq():
     """
-    A) Descrição: grava todos os pedidos no arquivo pedidos.json após cada
-               alteração.
+    A) Descrição: grava todos os pedidos no arquivo pedidos.json.
+               É chamada uma única vez, pelo Main, ao encerrar o programa.
     B) Acoplamento:
         Retorno: True -> salvou | False -> erro de escrita
     C) Condições de acoplamento:
@@ -507,7 +513,7 @@ def SalvarPedidosNoArq():
 
 
 # --------------------------------------------------------------------------
-# Inicialização: carrega os pedidos quando o módulo é importado (RF11)
+# Inicialização: carrega os pedidos uma vez, quando o módulo é importado
 # --------------------------------------------------------------------------
 
 _carregar_pedidos_do_arq()

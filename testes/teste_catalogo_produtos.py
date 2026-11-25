@@ -133,6 +133,13 @@ def caso_1_1_06_parametro_tipo_errado():
     verifica.assertFalse(retorno)
 
 
+def caso_1_1_08_cadastro_nao_grava_durante_a_execucao():
+    print("1.1 C8 (extra) - Cadastro fica so na memoria: o arquivo continua com 2 produtos")
+    verifica.assertEqual(catalogo.BuscarProduto("P003")["nome"], "Bone")
+    verifica.assertEqual([p["codigo"] for p in ler_arquivo(_ctx["arquivo"])],
+                         ["P001", "P002"])
+
+
 def caso_1_1_07_preco_nao_finito():
     print("1.1 C7 (extra) - Cadastro com preco NaN ou infinito")
     for preco in (float("nan"), float("inf")):
@@ -305,6 +312,14 @@ def caso_1_8_04_estoque_insuficiente():
     verifica.assertEqual(catalogo.ConsultarEstoque("P001"), 7)
 
 
+def caso_1_8_05_baixa_nao_grava_durante_a_execucao():
+    print("1.8 C5 (extra) - Baixa muda so a memoria: o arquivo continua com estoque 10")
+    verifica.assertEqual(catalogo.ConsultarEstoque("P001"), 7)
+    estoque_no_arquivo = [p["estoque"] for p in ler_arquivo(_ctx["arquivo"])
+                          if p["codigo"] == "P001"]
+    verifica.assertEqual(estoque_no_arquivo, [10])
+
+
 # ==========================================================================
 # 1.9 ReporEstoque(codigo: str, qtd: int) -> bool
 # ==========================================================================
@@ -380,6 +395,7 @@ GRUPOS = [
         caso_1_1_05_estoque_negativo,
         caso_1_1_06_parametro_tipo_errado,
         caso_1_1_07_preco_nao_finito,
+        caso_1_1_08_cadastro_nao_grava_durante_a_execucao,
     ], antes=preparar_cenario, depois=limpar_cenario),
     # 1.2 BuscarProduto(codigo: str) -> dict
     grupo([
@@ -423,6 +439,7 @@ GRUPOS = [
         caso_1_8_02_codigo_inexistente,
         caso_1_8_03_quantidade_menor_ou_igual_a_zero,
         caso_1_8_04_estoque_insuficiente,
+        caso_1_8_05_baixa_nao_grava_durante_a_execucao,
     ], antes=preparar_cenario, depois=limpar_cenario),
     # 1.9 ReporEstoque(codigo: str, qtd: int) -> bool
     grupo([

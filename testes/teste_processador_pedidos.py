@@ -192,7 +192,9 @@ def caso_3_1_01_carrinho_valido_e_estoque_suficiente():
     verifica.assertAlmostEqual(resultado["desconto"], 0.0)
     verifica.assertAlmostEqual(resultado["total"], 109.80)
     verifica.assertEqual(resultado["status"], "Aguardando pagamento")
-    verifica.assertEqual(len(ler_arquivo(_ctx["arquivo"])), 6)
+    verifica.assertEqual(len(pedidos.ListarPedidos("")), 6)
+    # O pedido fica so na memoria; pedidos.json so e gravado ao encerrar.
+    verifica.assertEqual(len(ler_arquivo(_ctx["arquivo"])), 5)
 
 
 def caso_3_1_02_carrinho_vazio():

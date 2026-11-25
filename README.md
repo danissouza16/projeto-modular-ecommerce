@@ -67,7 +67,8 @@ e-mail `admin@loja.com`, senha `admin`. Clientes se cadastram pela opção 2 do 
 
 ## Estrutura dos dados
 
-Cada módulo guarda uma lista de dicionários e grava no seu próprio JSON.
+Cada módulo guarda uma lista de dicionários na memória e só a grava no seu próprio JSON
+quando o programa é encerrado (ver Persistência nas regras do projeto).
 
 ```python
 # Produto (produtos.json) — identificado pelo código
@@ -102,7 +103,8 @@ Cada módulo guarda uma lista de dicionários e grava no seu próprio JSON.
 ## Exemplo de uso das funções de acesso
 
 Os módulos podem ser usados sem o menu, por exemplo num terminal Python aberto na raiz
-(lembrando que eles gravam nos arquivos reais de `dados/`):
+(as alterações ficam só na memória; para gravar em `dados/`, chame as funções de salvar,
+como o Main faz ao sair):
 
 ```python
 from modulos import catalogo_produtos as catalogo
@@ -130,7 +132,7 @@ Toda função de acesso devolve um código de retorno em vez de lançar exceçã
 Sempre a partir da pasta raiz do repositório:
 
 ```bash
-python -m unittest discover -s testes -p "teste_*.py" -v      # todos os módulos (169 testes)
+python -m unittest discover -s testes -p "teste_*.py" -v      # todos os módulos (175 testes)
 python -m unittest testes.teste_catalogo_produtos -v           # só catálogo (36 testes)
 python -m unittest testes.teste_gerenciador_clientes -v        # só clientes (34 testes)
 python -m unittest testes.teste_processador_pedidos -v         # só pedidos (36 testes)
@@ -147,8 +149,11 @@ python -m unittest testes.teste_main -v                        # só Main (26 te
   marcadas como internas no diagrama.
 - **Comunicação só pelas funções de acesso** do Diagrama de Funções de Acesso.
   Nunca acessar `_variaveis` de outro módulo.
-- **Persistência (RNF01/RF11):** cada módulo grava o seu JSON a cada alteração e o
-  carrega ao ser importado; se o arquivo não existir, cria vazio (`[]`).
+- **Persistência só entre uma execução e outra (RNF01/RF11):** cada módulo carrega o seu
+  JSON uma vez ao ser importado; durante a execução os dados ficam só na memória; ao sair
+  (opção 0 ou Ctrl+C), o `menu()` do Main grava os três arquivos com `SalvarCatalogoNoArq`
+  (1.10), `SalvarClientesNoArq` (2.11) e `SalvarPedidosNoArq` (3.9). Se um arquivo não
+  existir na inicialização, o módulo o cria vazio (`[]`).
 - **Nomes das funções** iguais aos do documento (`CadastrarProduto`, `ObterCarrinho`, ...).
 - **Docstrings** no formato da matéria (§12.4): `A) Descrição`, `B) Acoplamento`
   (parâmetros e retornos) e `C) Condições de acoplamento` (AE e AS).

@@ -418,8 +418,10 @@ def caso_2_8_04_produto_removido_do_catalogo(_mock_bus):
     }])
     verifica.assertEqual([i["codigo"] for i in clientes.ObterCarrinho("11122233344")],
                      ["P001"])
+    # A limpeza vale na memoria; o arquivo so e gravado ao encerrar (pelo Main).
     verifica.assertEqual(ler_arquivo(_ctx["arquivo"])[0]["carrinho"],
-                     [{"codigo": "P001", "quantidade": 1}])
+                     [{"codigo": "P001", "quantidade": 1},
+                      {"codigo": "P999", "quantidade": 2}])
 
 
 # ==========================================================================

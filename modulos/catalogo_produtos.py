@@ -7,8 +7,15 @@ Objetivo
     autorizado a alterar preços e quantidades, e o único que lê e grava
     o arquivo produtos.json (RNF01).
 
+Persistência (critério da disciplina: só entre uma execução e outra)
+    - Na inicialização (importação do módulo) o arquivo é lido uma única vez.
+    - Durante a execução os dados ficam só na memória; nenhuma função de
+      acesso grava o arquivo.
+    - Ao encerrar o programa, o Main chama SalvarCatalogoNoArq (1.10), que grava tudo de uma vez.
+
 Relações (Diagrama de Arquitetura)
-    Servidor de: Main, GerenciadorClientes, ProcessadorPedidos, RelatoriosVendas
+    Servidor de: Main (1.1..1.6, 1.9, 1.10), GerenciadorClientes, ProcessadorPedidos,
+                 RelatoriosVendas
     Cliente de:  nenhum módulo
 
 Estrutura de dados encapsulada
@@ -43,6 +50,7 @@ __all__ = [
     "ConsultarEstoque",       # 1.7
     "BaixarEstoque",          # 1.8
     "ReporEstoque",           # 1.9
+    "SalvarCatalogoNoArq",    # 1.10 (chamada pelo Main ao encerrar)
 ]
 
 # --------------------------------------------------------------------------
@@ -97,7 +105,8 @@ def _localizar_produto(codigo):
 
 def CadastrarProduto(p):
     """
-    A) Descrição: inclui um novo produto no catálogo e persiste o arquivo.
+    A) Descrição: inclui um novo produto no catálogo (em memória; o arquivo
+       só é gravado ao encerrar, por 1.10).
     B) Acoplamento:
         p (dict) com codigo, nome, descricao, categoria, preco, estoque
         Retorno: True  -> produto cadastrado
@@ -136,7 +145,6 @@ def CadastrarProduto(p):
         "estoque": p["estoque"],
     }
     _produtos.append(novo_produto)
-    SalvarCatalogoNoArq()
     return True
 
 
@@ -249,7 +257,6 @@ def AtualizarProduto(codigo, campo, valor):
     else:
         return False
 
-    SalvarCatalogoNoArq()
     return True
 
 
@@ -273,7 +280,6 @@ def RemoverProduto(codigo):
         return False
 
     _produtos.remove(produto)
-    SalvarCatalogoNoArq()
     return True
 
 
@@ -324,7 +330,6 @@ def BaixarEstoque(codigo, qtd):
         return False
 
     produto["estoque"] -= qtd
-    SalvarCatalogoNoArq()
     return True
 
 
@@ -352,17 +357,17 @@ def ReporEstoque(codigo, qtd):
         return False
 
     produto["estoque"] += qtd
-    SalvarCatalogoNoArq()
     return True
 
 
 # --------------------------------------------------------------------------
-# 1.10 SalvarCatalogoNoArq (interna)
+# 1.10 SalvarCatalogoNoArq (chamada pelo Main ao encerrar o programa)
 # --------------------------------------------------------------------------
 
 def SalvarCatalogoNoArq():
     """
-    A) Descrição: grava todos os produtos em produtos.json.
+    A) Descrição: grava todos os produtos em produtos.json. É chamada uma
+       única vez, pelo Main, ao encerrar o programa.
     B) Acoplamento:
         Retorno: True -> gravou | False -> erro de escrita
     C) Condições de acoplamento:
@@ -418,7 +423,7 @@ def CarregarCatalogoDoArq():
 
 
 # --------------------------------------------------------------------------
-# Inicialização: carrega o catálogo quando o módulo é importado (RF11)
+# Inicialização: carrega o catálogo uma vez, quando o módulo é importado
 # --------------------------------------------------------------------------
 
 CarregarCatalogoDoArq()

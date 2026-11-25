@@ -185,6 +185,52 @@ def caso_M_1_05_opcao_invalida():
 # ==========================================================================
 
 
+def _ler_dados(nome):
+    with open(os.path.join(_ctx["pasta"], nome), encoding="utf-8") as arq:
+        return json.load(arq)
+
+
+def caso_M_1_06_nada_e_gravado_durante_a_execucao():
+    print("M.1 C6 (extra) - Durante a execucao os arquivos nao mudam")
+    executar(main.fluxo_catalogo,
+             ["4", "P003", "Bone", "Aba reta", "Acessorios", "39.90", "5", "0"], "admin")
+    executar(main.fluxo_carrinho, ["2", "P001", "1", "0"], CPF_MARIA)
+    verifica.assertEqual(len(catalogo.ListarProdutos("")), 3)
+    verifica.assertEqual(_ler_dados("produtos.json"), PRODUTOS)
+    verifica.assertEqual(_ler_dados("clientes.json"), CLIENTES)
+
+
+def caso_M_1_07_sair_grava_todos_os_arquivos():
+    print("M.1 C7 (extra) - Ao sair, o Main grava produtos, clientes e pedidos")
+    executar(main.fluxo_catalogo,
+             ["4", "P003", "Bone", "Aba reta", "Acessorios", "39.90", "5", "0"], "admin")
+    pagar_pedido_da_maria()
+    tela = executar(main.menu, ["0"])
+    verifica.assertIn("Dados gravados.", tela)
+    verifica.assertIn("P003", [p["codigo"] for p in _ler_dados("produtos.json")])
+    verifica.assertEqual([p["status"] for p in _ler_dados("pedidos.json")], ["Pago"])
+    maria = [c for c in _ler_dados("clientes.json") if c["cpf"] == CPF_MARIA][0]
+    verifica.assertEqual(maria["carrinho"], [])
+
+
+def caso_M_1_08_nova_execucao_recupera_os_dados():
+    print("M.1 C8 (extra) - Nova execucao recupera o que foi gravado ao sair")
+    executar(main.fluxo_catalogo,
+             ["4", "P003", "Bone", "Aba reta", "Acessorios", "39.90", "5", "0"], "admin")
+    executar(main.menu, ["0"])
+    catalogo.CarregarCatalogoDoArq()          # como na importação de uma nova execução
+    verifica.assertEqual(catalogo.BuscarProduto("P003")["nome"], "Bone")
+
+
+def caso_M_1_09_interrupcao_tambem_grava():
+    print("M.1 C9 (extra) - Interrupcao com Ctrl+C tambem grava os dados")
+    executar(main.fluxo_catalogo,
+             ["4", "P003", "Bone", "Aba reta", "Acessorios", "39.90", "5", "0"], "admin")
+    with patch("builtins.input", side_effect=KeyboardInterrupt), redirect_stdout(io.StringIO()):
+        verifica.assertRaises(KeyboardInterrupt, main.menu)
+    verifica.assertIn("P003", [p["codigo"] for p in _ler_dados("produtos.json")])
+
+
 def caso_M_2_01_cliente_nao_ve_manutencao():
     print("M.2 C1 - Cliente nao ve nem executa a manutencao do catalogo (RNF02)")
     tela = executar(main.fluxo_catalogo, ["4", "0"], "cliente")
@@ -375,6 +421,10 @@ GRUPOS = [
         caso_M_1_03_credenciais_invalidas,
         caso_M_1_04_cadastro_de_cliente,
         caso_M_1_05_opcao_invalida,
+        caso_M_1_06_nada_e_gravado_durante_a_execucao,
+        caso_M_1_07_sair_grava_todos_os_arquivos,
+        caso_M_1_08_nova_execucao_recupera_os_dados,
+        caso_M_1_09_interrupcao_tambem_grava,
     ], antes_de_cada=preparar_cenario, depois_de_cada=limpar_cenario),
     # M.2 fluxo_catalogo(perfil) -> void
     grupo([

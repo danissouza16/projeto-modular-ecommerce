@@ -25,8 +25,11 @@ estão no Diagrama de Funções de Acesso (ex.: Clientes usa só 1.2 e 1.7 do Ca
 - Nomes das funções exatamente como no T2 (`CadastrarProduto`, `ObterCarrinho`, ...),
   com os mesmos parâmetros e retornos (bool / dict vazio / lista vazia / -1 / 0.0).
 - Funções de consulta devolvem cópias (`dict(p)`), nunca a referência interna.
-- Persistência: cada módulo lê/grava só o próprio JSON em `dados/`, grava a cada
-  alteração e carrega ao ser importado; arquivo ausente → cria com `[]`.
+- Persistência **só entre uma execução e outra** (critério do professor): cada módulo
+  lê/grava só o próprio JSON em `dados/`, carrega uma vez ao ser importado e **não grava
+  durante a execução**; o `menu()` do Main grava os três arquivos ao sair (1.10, 2.11,
+  3.9, também com Ctrl+C). Arquivo ausente na inicialização → cria com `[]`.
+  Nunca chamar `Salvar*NoArq()` dentro de funções de acesso.
 - Docstring de cada função no formato da matéria (§12.4): `A) Descrição`,
   `B) Acoplamento` (parâmetros e retornos), `C) Condições de acoplamento` (AE e AS).
 

@@ -7,8 +7,14 @@ Objetivo
     da loja. É o ÚNICO módulo autorizado a alterar dados cadastrais e itens
     dos carrinhos, e o único que lê e grava o arquivo clientes.json (RNF01).
 
+Persistência (critério da disciplina: só entre uma execução e outra)
+    - Na inicialização (importação do módulo) o arquivo é lido uma única vez.
+    - Durante a execução os dados ficam só na memória; nenhuma função de
+      acesso grava o arquivo.
+    - Ao encerrar o programa, o Main chama SalvarClientesNoArq (2.11), que grava tudo de uma vez.
+
 Relações (Diagrama de Arquitetura)
-    Servidor de: Main (2.3 a 2.9), ProcessadorPedidos (2.8, 2.10)
+    Servidor de: Main (2.3 a 2.9, 2.11), ProcessadorPedidos (2.8, 2.10)
     Cliente de:  CatalogoProdutos (1.2, 1.7)
 
 Estrutura de dados encapsulada
@@ -27,7 +33,8 @@ Assertivas estruturais
 Encapsulamento (RNF03)
 - Os dados ficam em variáveis com prefixo "_" e não são exportados.
 - __all__ lista apenas as funções públicas de acesso (2.3 a 2.10).
-- Funções internas do diagrama (2.1, 2.2, 2.11) e auxiliares (_) não são exportadas.
+- Funções internas do diagrama (2.1, 2.2) e auxiliares (_) não são exportadas;
+  a 2.11 é exportada porque o Main a chama ao encerrar.
 
 Restrições
     - As auxiliares _normalizar_cpf, _texto_valido e _inteiro_valido se
@@ -51,6 +58,7 @@ __all__ = [
     "ObterCarrinho",          # 2.8
     "CalcularSubtotal",       # 2.9
     "EsvaziarCarrinho",       # 2.10
+    "SalvarClientesNoArq",    # 2.11 (chamada pelo Main ao encerrar)
 ]
 
 # --------------------------------------------------------------------------
@@ -226,7 +234,6 @@ def CadastrarCliente(c):
         "carrinho": [],
     }
     _clientes.append(novo_cliente)
-    SalvarClientesNoArq()
     return True
 
 
@@ -313,7 +320,6 @@ def AdicionarItemCarrinho(cpf, codigo, qtd):
     else:
         cliente["carrinho"].append({"codigo": codigo_limpo, "quantidade": qtd})
 
-    SalvarClientesNoArq()
     return True
 
 
@@ -357,7 +363,6 @@ def AlterarQuantidadeItem(cpf, codigo, qtd):
         return False
 
     item_alvo["quantidade"] = qtd
-    SalvarClientesNoArq()
     return True
 
 
@@ -385,7 +390,6 @@ def RemoverItemCarrinho(cpf, codigo):
     for item in cliente["carrinho"]:
         if item["codigo"] == codigo_limpo:
             cliente["carrinho"].remove(item)
-            SalvarClientesNoArq()
             return True
 
     return False
@@ -430,7 +434,6 @@ def ObterCarrinho(cpf):
 
     if len(mantidos) != len(cliente["carrinho"]):
         cliente["carrinho"] = mantidos
-        SalvarClientesNoArq()
     return itens
 
 
@@ -478,18 +481,17 @@ def EsvaziarCarrinho(cpf):
         return False
 
     cliente["carrinho"] = []
-    SalvarClientesNoArq()
     return True
 
 
 # --------------------------------------------------------------------------
-# 2.11 SalvarClientesNoArq (interna)
+# 2.11 SalvarClientesNoArq (chamada pelo Main ao encerrar o programa)
 # --------------------------------------------------------------------------
 
 def SalvarClientesNoArq():
     """
-    A) Descrição: grava os clientes e seus carrinhos no arquivo clientes.json
-               após cada alteração.
+    A) Descrição: grava os clientes e seus carrinhos no arquivo clientes.json.
+               É chamada uma única vez, pelo Main, ao encerrar o programa.
     B) Acoplamento:
         Retorno: True -> salvou | False -> erro de escrita
     C) Condições de acoplamento:
@@ -507,7 +509,7 @@ def SalvarClientesNoArq():
 
 
 # --------------------------------------------------------------------------
-# Inicialização: carrega os clientes quando o módulo é importado (RF11)
+# Inicialização: carrega os clientes uma vez, quando o módulo é importado
 # --------------------------------------------------------------------------
 
 _carregar_clientes_do_arq()
