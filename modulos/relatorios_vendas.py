@@ -115,15 +115,16 @@ def _pagos_no_periodo(inicio, fim):
 
 def CalcularFaturamento(inicio, fim):
     """
-    Descrição: soma o total dos pedidos pagos no período (inclusivo).
-    Acoplamento:
+    A) Descrição: soma o total dos pedidos pagos no período (inclusivo).
+    B) Acoplamento:
         inicio (str), fim (str) no formato AAAA-MM-DD
         Retorno: valor faturado (float, 2 casas) |
                  0.0 se não há pedidos pagos no período, data inválida
                  ou inicio posterior a fim
-    AE: inicio e fim são datas válidas AAAA-MM-DD com inicio <= fim.
-    AS: nenhum dado é alterado; só entram pedidos "Pago" com data no
-        período, inclusive nas duas pontas.
+    C) Condições de acoplamento:
+        AE: inicio e fim são datas válidas AAAA-MM-DD com inicio <= fim.
+        AS: nenhum dado é alterado; só entram pedidos "Pago" com data no
+            período, inclusive nas duas pontas.
     """
     total = 0.0
     for pedido in _pagos_no_periodo(inicio, fim):
@@ -137,13 +138,14 @@ def CalcularFaturamento(inicio, fim):
 
 def CalcularTicketMedio(inicio, fim):
     """
-    Descrição: faturamento do período dividido pelo número de pedidos pagos.
-    Acoplamento:
+    A) Descrição: faturamento do período dividido pelo número de pedidos pagos.
+    B) Acoplamento:
         inicio (str), fim (str) no formato AAAA-MM-DD
         Retorno: valor médio por pedido (float, 2 casas) |
                  0.0 se não há pedidos pagos no período ou datas inválidas
-    AE: inicio e fim são datas válidas AAAA-MM-DD com inicio <= fim.
-    AS: nenhum dado é alterado; nunca há divisão por zero.
+    C) Condições de acoplamento:
+        AE: inicio e fim são datas válidas AAAA-MM-DD com inicio <= fim.
+        AS: nenhum dado é alterado; nunca há divisão por zero.
     """
     selecionados = _pagos_no_periodo(inicio, fim)
     if len(selecionados) == 0:
@@ -161,19 +163,20 @@ def CalcularTicketMedio(inicio, fim):
 
 def ListarMaisVendidos(n):
     """
-    Descrição: ranking dos n produtos mais vendidos em pedidos pagos.
+    A) Descrição: ranking dos n produtos mais vendidos em pedidos pagos.
                Empates na quantidade são desempatados pelo código (crescente).
                O nome vem do catálogo (1.2); se o produto não existir mais
                no catálogo, usa o nome registrado no item do pedido ou,
                na falta dele, o próprio código.
-    Acoplamento:
+    B) Acoplamento:
         n (int)
         Retorno: [{"codigo": str, "nome": str, "quantidade": int}, ...]
                  em ordem decrescente de quantidade |
                  [] se n <= 0, n não é int ou não há vendas
-    AE: n é int > 0.
-    AS: nenhum dado é alterado; a lista tem no máximo n itens, só conta
-        pedidos "Pago" e está em ordem decrescente de quantidade.
+    C) Condições de acoplamento:
+        AE: n é int > 0.
+        AS: nenhum dado é alterado; a lista tem no máximo n itens, só conta
+            pedidos "Pago" e está em ordem decrescente de quantidade.
     """
     if not _inteiro_valido(n) or n <= 0:
         return []
@@ -206,13 +209,14 @@ def ListarMaisVendidos(n):
 
 def VendasPorCliente(cpf):
     """
-    Descrição: pedidos pagos de um cliente, na ordem em que a 3.7 os fornece.
-    Acoplamento:
+    A) Descrição: pedidos pagos de um cliente, na ordem em que a 3.7 os fornece.
+    B) Acoplamento:
         cpf (str)
         Retorno: [{"numero": int, "data": str, "total": float}, ...] |
                  [] se o cliente não tem compras, não existe ou cpf inválido
-    AE: cpf é str com 11 dígitos (pontos e traço são ignorados).
-    AS: nenhum dado é alterado; só entram pedidos "Pago" do cliente.
+    C) Condições de acoplamento:
+        AE: cpf é str com 11 dígitos (pontos e traço são ignorados).
+        AS: nenhum dado é alterado; só entram pedidos "Pago" do cliente.
     """
     cpf_norm = _normalizar_cpf(cpf)
     if cpf_norm is None:
@@ -235,14 +239,15 @@ def VendasPorCliente(cpf):
 
 def ListarEstoqueBaixo(limite):
     """
-    Descrição: produtos com estoque menor ou igual ao limite (inclusivo).
-    Acoplamento:
+    A) Descrição: produtos com estoque menor ou igual ao limite (inclusivo).
+    B) Acoplamento:
         limite (int)
         Retorno: lista de produtos (cópias vindas de 1.4) |
                  [] se nenhum atende, limite negativo ou limite não é int
-    AE: limite é int >= 0.
-    AS: nenhum dado é alterado; todo produto devolvido tem
-        estoque <= limite.
+    C) Condições de acoplamento:
+        AE: limite é int >= 0.
+        AS: nenhum dado é alterado; todo produto devolvido tem
+            estoque <= limite.
     """
     if not _inteiro_valido(limite) or limite < 0:
         return []
@@ -260,17 +265,18 @@ def ListarEstoqueBaixo(limite):
 
 def ExportarRelatorio(dados, arq):
     """
-    Descrição: grava o resultado de um relatório em arquivo de texto
+    A) Descrição: grava o resultado de um relatório em arquivo de texto
                (UTF-8), uma linha por item no formato "campo: valor | ...".
                O arquivo é criado no diretório de trabalho atual.
-    Acoplamento:
+    B) Acoplamento:
         dados (list) não vazia, arq (str) nome simples de arquivo
               (sem os caracteres \\ / : * ? " < > |)
         Retorno: True  -> exportou
                  False -> lista vazia/inválida, nome inválido ou erro de escrita
-    AE: dados é lista não vazia; arq é nome de arquivo válido.
-    AS: se True, o arquivo existe com uma linha por item de dados;
-        se False por validação, nenhum arquivo é criado.
+    C) Condições de acoplamento:
+        AE: dados é lista não vazia; arq é nome de arquivo válido.
+        AS: se True, o arquivo existe com uma linha por item de dados;
+            se False por validação, nenhum arquivo é criado.
     """
     if not isinstance(dados, list) or len(dados) == 0:
         return False

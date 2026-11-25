@@ -97,14 +97,15 @@ def _localizar_produto(codigo):
 
 def CadastrarProduto(p):
     """
-    Descrição: inclui um novo produto no catálogo e persiste o arquivo.
-    Acoplamento:
+    A) Descrição: inclui um novo produto no catálogo e persiste o arquivo.
+    B) Acoplamento:
         p (dict) com codigo, nome, descricao, categoria, preco, estoque
         Retorno: True  -> produto cadastrado
                  False -> p não é dict, campo ausente/inválido ou código já existe
-    AE: p contém os seis campos; textos não vazios; preco > 0; estoque int >= 0.
-    AS: se True, o produto está em _produtos e em produtos.json;
-        se False, o catálogo não foi alterado.
+    C) Condições de acoplamento:
+        AE: p contém os seis campos; textos não vazios; preco > 0; estoque int >= 0.
+        AS: se True, o produto está em _produtos e em produtos.json;
+            se False, o catálogo não foi alterado.
     """
     if not isinstance(p, dict):
         return False
@@ -145,13 +146,14 @@ def CadastrarProduto(p):
 
 def BuscarProduto(codigo):
     """
-    Descrição: busca um produto pelo código.
-    Acoplamento:
+    A) Descrição: busca um produto pelo código.
+    B) Acoplamento:
         codigo (str)
         Retorno: dict com uma cópia do produto | {} se o código não existe
-    AE: codigo é str (espaços nas pontas são ignorados).
-    AS: o catálogo não é alterado; o dict devolvido é uma cópia, e alterá-lo
-        não afeta _produtos.
+    C) Condições de acoplamento:
+        AE: codigo é str (espaços nas pontas são ignorados).
+        AS: o catálogo não é alterado; o dict devolvido é uma cópia, e alterá-lo
+            não afeta _produtos.
     """
     produto = _localizar_produto(codigo)
     if produto is None:
@@ -165,15 +167,16 @@ def BuscarProduto(codigo):
 
 def BuscarProdutoPorNome(nome):
     """
-    Descrição: busca produtos cujo nome contém o texto informado,
+    A) Descrição: busca produtos cujo nome contém o texto informado,
                sem diferenciar maiúsculas e minúsculas.
-    Acoplamento:
+    B) Acoplamento:
         nome (str)
         Retorno: lista de cópias dos produtos encontrados |
                  [] se nenhum corresponde ou o texto é vazio
-    AE: nome é str não vazia.
-    AS: o catálogo não é alterado; todo produto devolvido contém o texto
-        no nome (ignorando maiúsculas e minúsculas).
+    C) Condições de acoplamento:
+        AE: nome é str não vazia.
+        AS: o catálogo não é alterado; todo produto devolvido contém o texto
+            no nome (ignorando maiúsculas e minúsculas).
     """
     if not _texto_valido(nome):
         return []
@@ -192,14 +195,15 @@ def BuscarProdutoPorNome(nome):
 
 def ListarProdutos(categoria):
     """
-    Descrição: lista os produtos de uma categoria; categoria "" lista todos.
+    A) Descrição: lista os produtos de uma categoria; categoria "" lista todos.
                A comparação de categoria não diferencia maiúsculas e minúsculas.
-    Acoplamento:
+    B) Acoplamento:
         categoria (str)
         Retorno: lista de cópias dos produtos | [] se não houver produtos
-    AE: categoria é str ("" significa todas as categorias).
-    AS: o catálogo não é alterado; todo produto devolvido pertence à
-        categoria informada (ou a qualquer uma, se categoria == "").
+    C) Condições de acoplamento:
+        AE: categoria é str ("" significa todas as categorias).
+        AS: o catálogo não é alterado; todo produto devolvido pertence à
+            categoria informada (ou a qualquer uma, se categoria == "").
     """
     if not isinstance(categoria, str):
         return []
@@ -218,16 +222,17 @@ def ListarProdutos(categoria):
 
 def AtualizarProduto(codigo, campo, valor):
     """
-    Descrição: altera UM campo do produto (nome, descricao, categoria ou preco).
+    A) Descrição: altera UM campo do produto (nome, descricao, categoria ou preco).
                Código e estoque não podem ser alterados por esta função.
-    Acoplamento:
+    B) Acoplamento:
         codigo (str), campo (str), valor (str para textos; número > 0 para preco)
         Retorno: True  -> campo atualizado
                  False -> código inexistente, campo inválido ou valor incompatível
-    AE: o produto existe; campo é nome, descricao, categoria ou preco;
-        valor é texto não vazio (campos de texto) ou número finito > 0 (preco).
-    AS: se True, só o campo informado mudou e produtos.json foi gravado;
-        se False, o produto não foi alterado.
+    C) Condições de acoplamento:
+        AE: o produto existe; campo é nome, descricao, categoria ou preco;
+            valor é texto não vazio (campos de texto) ou número finito > 0 (preco).
+        AS: se True, só o campo informado mudou e produtos.json foi gravado;
+            se False, o produto não foi alterado.
     """
     produto = _localizar_produto(codigo)
     if produto is None:
@@ -254,13 +259,14 @@ def AtualizarProduto(codigo, campo, valor):
 
 def RemoverProduto(codigo):
     """
-    Descrição: remove o produto do catálogo.
-    Acoplamento:
+    A) Descrição: remove o produto do catálogo.
+    B) Acoplamento:
         codigo (str)
         Retorno: True -> removido | False -> código inexistente
-    AE: codigo é str de um produto cadastrado.
-    AS: se True, o produto não está mais em _produtos nem em produtos.json;
-        se False, o catálogo não foi alterado.
+    C) Condições de acoplamento:
+        AE: codigo é str de um produto cadastrado.
+        AS: se True, o produto não está mais em _produtos nem em produtos.json;
+            se False, o catálogo não foi alterado.
     """
     produto = _localizar_produto(codigo)
     if produto is None:
@@ -277,12 +283,13 @@ def RemoverProduto(codigo):
 
 def ConsultarEstoque(codigo):
     """
-    Descrição: informa a quantidade disponível de um produto.
-    Acoplamento:
+    A) Descrição: informa a quantidade disponível de um produto.
+    B) Acoplamento:
         codigo (str)
         Retorno: quantidade em estoque (int >= 0) | -1 se o código não existe
-    AE: codigo é str.
-    AS: o catálogo não é alterado.
+    C) Condições de acoplamento:
+        AE: codigo é str.
+        AS: o catálogo não é alterado.
     """
     produto = _localizar_produto(codigo)
     if produto is None:
@@ -296,14 +303,15 @@ def ConsultarEstoque(codigo):
 
 def BaixarEstoque(codigo, qtd):
     """
-    Descrição: subtrai qtd do estoque após um pagamento aprovado.
-    Acoplamento:
+    A) Descrição: subtrai qtd do estoque após um pagamento aprovado.
+    B) Acoplamento:
         codigo (str), qtd (int)
         Retorno: True  -> baixa realizada
                  False -> código inexistente, qtd <= 0 ou estoque insuficiente
-    AE: qtd é int > 0 e qtd <= estoque atual.
-    AS: se True, estoque_novo = estoque_antigo - qtd (nunca negativo);
-        se False, o estoque não muda.
+    C) Condições de acoplamento:
+        AE: qtd é int > 0 e qtd <= estoque atual.
+        AS: se True, estoque_novo = estoque_antigo - qtd (nunca negativo);
+            se False, o estoque não muda.
     """
     produto = _localizar_produto(codigo)
     if produto is None:
@@ -326,14 +334,15 @@ def BaixarEstoque(codigo, qtd):
 
 def ReporEstoque(codigo, qtd):
     """
-    Descrição: soma qtd ao estoque (reposição pelo administrador ou
+    A) Descrição: soma qtd ao estoque (reposição pelo administrador ou
                devolução no cancelamento de um pedido pago).
-    Acoplamento:
+    B) Acoplamento:
         codigo (str), qtd (int)
         Retorno: True  -> reposição realizada
                  False -> código inexistente ou qtd <= 0
-    AE: o produto existe e qtd é int > 0.
-    AS: se True, estoque_novo = estoque_antigo + qtd; se False, não muda.
+    C) Condições de acoplamento:
+        AE: o produto existe e qtd é int > 0.
+        AS: se True, estoque_novo = estoque_antigo + qtd; se False, não muda.
     """
     produto = _localizar_produto(codigo)
     if produto is None:
@@ -353,12 +362,13 @@ def ReporEstoque(codigo, qtd):
 
 def SalvarCatalogoNoArq():
     """
-    Descrição: grava todos os produtos em produtos.json.
-    Acoplamento:
+    A) Descrição: grava todos os produtos em produtos.json.
+    B) Acoplamento:
         Retorno: True -> gravou | False -> erro de escrita
-    AE: _produtos respeita as assertivas estruturais do módulo.
-    AS: se True, produtos.json contém exatamente _produtos;
-        se False, _produtos continua igual em memória.
+    C) Condições de acoplamento:
+        AE: _produtos respeita as assertivas estruturais do módulo.
+        AS: se True, produtos.json contém exatamente _produtos;
+            se False, _produtos continua igual em memória.
     """
     try:
         os.makedirs(os.path.dirname(_CAMINHO_ARQUIVO), exist_ok=True)
@@ -375,14 +385,15 @@ def SalvarCatalogoNoArq():
 
 def CarregarCatalogoDoArq():
     """
-    Descrição: lê produtos.json para a estrutura interna. Se o arquivo não
+    A) Descrição: lê produtos.json para a estrutura interna. Se o arquivo não
                existe, cria-o vazio ("[]") e o catálogo começa vazio.
-    Acoplamento:
+    B) Acoplamento:
         Retorno: lista (cópia) dos produtos carregados | [] se vazio,
                  inexistente ou ilegível
-    AE: nenhuma (o arquivo pode existir ou não).
-    AS: _produtos reflete o conteúdo do arquivo; se o arquivo não existia,
-        ele passa a existir contendo [].
+    C) Condições de acoplamento:
+        AE: nenhuma (o arquivo pode existir ou não).
+        AS: _produtos reflete o conteúdo do arquivo; se o arquivo não existia,
+            ele passa a existir contendo [].
     """
     global _produtos
 

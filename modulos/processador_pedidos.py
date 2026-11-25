@@ -197,20 +197,21 @@ def _carregar_pedidos_do_arq():
 
 def CriarPedido(cpf):
     """
-    Descrição: lê o carrinho do cliente (2.8), confere o estoque de cada
+    A) Descrição: lê o carrinho do cliente (2.8), confere o estoque de cada
                item (1.7), calcula o total (3.2) e registra o pedido com
                status "Aguardando pagamento". O carrinho só é esvaziado
                quando o pagamento é aprovado (3.3).
-    Acoplamento:
+    B) Acoplamento:
         cpf (str)
         Retorno: dict com o pedido criado
                  | {} se o cliente não existe, o carrinho está vazio ou
                    algum item tem estoque insuficiente
-    AE: cpf é str; o carrinho do cliente (2.8) não está vazio e todo item
-        tem quantidade <= estoque (1.7).
-    AS: se retornou pedido, ele está em _pedidos e em pedidos.json com
-        número = maior número existente + 1; o estoque e o carrinho não
-        mudam; se {}, nada foi criado (sem pedido parcial, RI02).
+    C) Condições de acoplamento:
+        AE: cpf é str; o carrinho do cliente (2.8) não está vazio e todo item
+            tem quantidade <= estoque (1.7).
+        AS: se retornou pedido, ele está em _pedidos e em pedidos.json com
+            número = maior número existente + 1; o estoque e o carrinho não
+            mudam; se {}, nada foi criado (sem pedido parcial, RI02).
     """
     cpf_norm = _normalizar_cpf(cpf)
     if cpf_norm is None:
@@ -249,16 +250,17 @@ def CriarPedido(cpf):
 
 def CalcularTotal(itens, frete, desconto):
     """
-    Descrição: soma preço * quantidade dos itens, subtrai o desconto e soma
+    A) Descrição: soma preço * quantidade dos itens, subtrai o desconto e soma
                o frete.
-    Acoplamento:
+    B) Acoplamento:
         itens (list de dict com preco e quantidade), frete (float >= 0),
         desconto (float >= 0)
         Retorno: total calculado, arredondado em 2 casas
                  | 0.0 se a lista é vazia/inválida, ou frete ou desconto negativos
-    AE: itens é lista não vazia de dicts com preco >= 0 e quantidade int > 0;
-        frete >= 0; desconto >= 0.
-    AS: _pedidos não é alterado; total = max(subtotal - desconto, 0) + frete.
+    C) Condições de acoplamento:
+        AE: itens é lista não vazia de dicts com preco >= 0 e quantidade int > 0;
+            frete >= 0; desconto >= 0.
+        AS: _pedidos não é alterado; total = max(subtotal - desconto, 0) + frete.
     """
     if not isinstance(itens, list) or not itens:
         return 0.0
@@ -289,22 +291,23 @@ def CalcularTotal(itens, frete, desconto):
 
 def SimularPagamento(pedido, forma):
     """
-    Descrição: simula o pagamento de um pedido "Aguardando pagamento".
+    A) Descrição: simula o pagamento de um pedido "Aguardando pagamento".
                Aprovado: baixa o estoque (1.8), esvazia o carrinho (2.10) e
                muda o status para "Pago". Recusado: muda o status para
                "Cancelado" sem mexer no estoque.
-    Acoplamento:
+    B) Acoplamento:
         pedido (dict com ao menos "numero"), forma (str: "pix", "cartao" ou "boleto")
         Retorno: True  -> pagamento aprovado
                  False -> pedido inexistente ou que não está aguardando
                           pagamento, forma inválida (o pedido continua
                           aguardando), pagamento recusado ou estoque
                           insuficiente (o pedido é cancelado)
-    AE: pedido é dict com "numero" de um pedido "Aguardando pagamento";
-        forma é "pix", "cartao" ou "boleto".
-    AS: se True, status "Pago" (3.4), estoque baixado (1.8) uma única vez
-        por item e carrinho vazio (2.10); se recusado, status "Cancelado" e
-        estoque inalterado; se forma inválida, nada muda.
+    C) Condições de acoplamento:
+        AE: pedido é dict com "numero" de um pedido "Aguardando pagamento";
+            forma é "pix", "cartao" ou "boleto".
+        AS: se True, status "Pago" (3.4), estoque baixado (1.8) uma única vez
+            por item e carrinho vazio (2.10); se recusado, status "Cancelado" e
+            estoque inalterado; se forma inválida, nada muda.
     """
     if not isinstance(pedido, dict):
         return False
@@ -349,16 +352,17 @@ def SimularPagamento(pedido, forma):
 
 def AtualizarStatus(num, status):
     """
-    Descrição: altera o status de um pedido para "Aguardando pagamento",
+    A) Descrição: altera o status de um pedido para "Aguardando pagamento",
                "Pago" ou "Cancelado". Não mexe no estoque.
-    Acoplamento:
+    B) Acoplamento:
         num (int), status (str)
         Retorno: True -> status alterado
                  False -> pedido inexistente ou status fora dos três permitidos
-    AE: num é int de um pedido existente; status é um dos três permitidos
-        (maiúsculas e espaços nas pontas são ignorados).
-    AS: se True, o pedido tem o novo status e pedidos.json foi gravado;
-        se False, nada mudou.
+    C) Condições de acoplamento:
+        AE: num é int de um pedido existente; status é um dos três permitidos
+            (maiúsculas e espaços nas pontas são ignorados).
+        AS: se True, o pedido tem o novo status e pedidos.json foi gravado;
+            se False, nada mudou.
     """
     novo_status = _status_canonico(status)
     if novo_status is None:
@@ -379,17 +383,18 @@ def AtualizarStatus(num, status):
 
 def CancelarPedido(num):
     """
-    Descrição: cancela um pedido. Se o pedido estava "Pago", devolve os
+    A) Descrição: cancela um pedido. Se o pedido estava "Pago", devolve os
                itens ao estoque (1.9).
-    Acoplamento:
+    B) Acoplamento:
         num (int)
         Retorno: True  -> pedido cancelado
                  False -> pedido inexistente ou já cancelado
-    AE: num é int de um pedido "Aguardando pagamento" ou "Pago".
-    AS: se True, status "Cancelado" (3.4); se o pedido estava pago, cada
-        item ainda existente no catálogo voltou ao estoque (1.9) — itens de
-        produtos removidos são ignorados (ver Hipóteses); se False, nada
-        mudou. O cancelamento vale sempre para o pedido inteiro (RI03).
+    C) Condições de acoplamento:
+        AE: num é int de um pedido "Aguardando pagamento" ou "Pago".
+        AS: se True, status "Cancelado" (3.4); se o pedido estava pago, cada
+            item ainda existente no catálogo voltou ao estoque (1.9) — itens de
+            produtos removidos são ignorados (ver Hipóteses); se False, nada
+            mudou. O cancelamento vale sempre para o pedido inteiro (RI03).
     """
     registro = BuscarPedido(num)
     if not registro or registro["status"] == _STATUS_CANCELADO:
@@ -408,12 +413,13 @@ def CancelarPedido(num):
 
 def BuscarPedido(num):
     """
-    Descrição: busca um pedido pelo número.
-    Acoplamento:
+    A) Descrição: busca um pedido pelo número.
+    B) Acoplamento:
         num (int)
         Retorno: dict com uma cópia do pedido | {} se não existe
-    AE: num é int.
-    AS: _pedidos não é alterado; o dict devolvido é uma cópia.
+    C) Condições de acoplamento:
+        AE: num é int.
+        AS: _pedidos não é alterado; o dict devolvido é uma cópia.
     """
     registro = _localizar_pedido(num)
     if registro is None:
@@ -427,15 +433,16 @@ def BuscarPedido(num):
 
 def ListarPedidos(status):
     """
-    Descrição: lista os pedidos com o status informado; status "" lista todos.
+    A) Descrição: lista os pedidos com o status informado; status "" lista todos.
                A comparação ignora maiúsculas e minúsculas.
-    Acoplamento:
+    B) Acoplamento:
         status (str)
         Retorno: lista de cópias dos pedidos | [] se nenhum corresponde
                  ou o status é inválido
-    AE: status é str ("" significa todos).
-    AS: _pedidos não é alterado; a lista vem na ordem de criação (número
-        crescente) e contém cópias.
+    C) Condições de acoplamento:
+        AE: status é str ("" significa todos).
+        AS: _pedidos não é alterado; a lista vem na ordem de criação (número
+            crescente) e contém cópias.
     """
     if not isinstance(status, str):
         return []
@@ -455,15 +462,16 @@ def ListarPedidos(status):
 
 def ListarPedidosCliente(cpf):
     """
-    Descrição: lista todos os pedidos de um cliente, do mais recente ao
+    A) Descrição: lista todos os pedidos de um cliente, do mais recente ao
                mais antigo (data e, em empate, número decrescentes).
-    Acoplamento:
+    B) Acoplamento:
         cpf (str)
         Retorno: lista de cópias dos pedidos | [] se o cliente não tem
                  pedidos ou o CPF é inválido
-    AE: cpf é str (pontos e traço são ignorados).
-    AS: _pedidos não é alterado; a lista contém cópias, da data mais
-        recente para a mais antiga.
+    C) Condições de acoplamento:
+        AE: cpf é str (pontos e traço são ignorados).
+        AS: _pedidos não é alterado; a lista contém cópias, da data mais
+            recente para a mais antiga.
     """
     cpf_norm = _normalizar_cpf(cpf)
     if cpf_norm is None:
@@ -480,13 +488,14 @@ def ListarPedidosCliente(cpf):
 
 def SalvarPedidosNoArq():
     """
-    Descrição: grava todos os pedidos no arquivo pedidos.json após cada
+    A) Descrição: grava todos os pedidos no arquivo pedidos.json após cada
                alteração.
-    Acoplamento:
+    B) Acoplamento:
         Retorno: True -> salvou | False -> erro de escrita
-    AE: _pedidos respeita as assertivas estruturais do módulo.
-    AS: se True, pedidos.json contém exatamente _pedidos;
-        se False, _pedidos continua igual em memória.
+    C) Condições de acoplamento:
+        AE: _pedidos respeita as assertivas estruturais do módulo.
+        AS: se True, pedidos.json contém exatamente _pedidos;
+            se False, _pedidos continua igual em memória.
     """
     try:
         os.makedirs(os.path.dirname(_CAMINHO_ARQUIVO), exist_ok=True)

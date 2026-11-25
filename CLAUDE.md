@@ -26,13 +26,15 @@ estão no Diagrama de Funções de Acesso (ex.: Clientes usa só 1.2 e 1.7 do Ca
 - Funções de consulta devolvem cópias (`dict(p)`), nunca a referência interna.
 - Persistência: cada módulo lê/grava só o próprio JSON em `dados/`, grava a cada
   alteração e carrega ao ser importado; arquivo ausente → cria com `[]`.
-- Docstring de cada função no formato da matéria: Descrição, Acoplamento
-  (parâmetros e retornos), AE/AS (assertivas de entrada e saída).
+- Docstring de cada função no formato da matéria (§12.4): `A) Descrição`,
+  `B) Acoplamento` (parâmetros e retornos), `C) Condições de acoplamento` (AE e AS).
 
 ## Testes (TDD)
 
 - Um testador por módulo em `testes/teste_<modulo>.py`, cobrindo todos os casos da
-  seção 5 do T2, com `test_NN_...` e `print("x.y Cn - descrição")`.
+  seção 5 do T2, com `test_NN_...` e `print("x.y Cn - descrição")`; casos a mais
+  como `Cn (extra)`. O Main tem `testes/teste_main.py` (casos M.x, input simulado,
+  módulos reais em pasta temporária).
 - Testes usam pasta temporária e nunca alteram os arquivos reais de `dados/`
   (modelo: `testes/teste_catalogo_produtos.py`).
 - Rodar da raiz: `python -m unittest discover -s testes -p "teste_*.py" -v`
