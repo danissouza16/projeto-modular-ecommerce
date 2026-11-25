@@ -140,15 +140,16 @@ def _carregar_clientes_do_arq():
 
 def ValidarDados(c):
     """
-    Descrição: verifica se o dicionário gerado com os dados do cliente possui
+    A) Descrição: verifica se o dicionário gerado com os dados do cliente possui
                todos os campos obrigatórios e com valores válidos (nome não vazio,
                CPF com 11 dígitos, e-mail contendo "@", senha e endereço preenchidos).
-    Acoplamento:
+    B) Acoplamento:
         c (dict)
         Retorno: True -> válido | False -> caso contrário
-    AE: nenhuma (c pode ser de qualquer tipo).
-    AS: _clientes não é alterado; True garante que c tem os cinco campos
-        obrigatórios com valores válidos.
+    C) Condições de acoplamento:
+        AE: nenhuma (c pode ser de qualquer tipo).
+        AS: _clientes não é alterado; True garante que c tem os cinco campos
+            obrigatórios com valores válidos.
     """
     if not isinstance(c, dict):
         return False
@@ -177,12 +178,13 @@ def ValidarDados(c):
 
 def VerificarExistenciaCpf(cpf):
     """
-    Descrição: verifica se o CPF já está cadastrado.
-    Acoplamento:
+    A) Descrição: verifica se o CPF já está cadastrado.
+    B) Acoplamento:
         cpf (str)
         Retorno: True -> encontrado | False -> caso contrário
-    AE: cpf é str (pontos e traço são ignorados).
-    AS: _clientes não é alterado.
+    C) Condições de acoplamento:
+        AE: cpf é str (pontos e traço são ignorados).
+        AS: _clientes não é alterado.
     """
     return _localizar_cliente_por_cpf(cpf) is not None
 
@@ -193,15 +195,16 @@ def VerificarExistenciaCpf(cpf):
 
 def CadastrarCliente(c):
     """
-    Descrição: valida os dados (2.1), verifica duplicidade de CPF (2.2) e de
+    A) Descrição: valida os dados (2.1), verifica duplicidade de CPF (2.2) e de
                e-mail e inclui o cliente com perfil "cliente" e carrinho vazio.
-    Acoplamento:
+    B) Acoplamento:
         c (dict) com cpf, nome, email, senha, endereco
         Retorno: True  -> cliente cadastrado
                  False -> dados inválidos ou CPF/e-mail já existente
-    AE: c passa em ValidarDados (2.1); CPF e e-mail ainda não cadastrados.
-    AS: se True, o cliente está em _clientes e em clientes.json com perfil
-        "cliente" e carrinho vazio; se False, nada foi alterado.
+    C) Condições de acoplamento:
+        AE: c passa em ValidarDados (2.1); CPF e e-mail ainda não cadastrados.
+        AS: se True, o cliente está em _clientes e em clientes.json com perfil
+            "cliente" e carrinho vazio; se False, nada foi alterado.
     """
     if not ValidarDados(c):
         return False
@@ -233,14 +236,15 @@ def CadastrarCliente(c):
 
 def AutenticarCliente(email, senha):
     """
-    Descrição: verifica o e-mail e a senha e retorna o dicionário do usuário
+    A) Descrição: verifica o e-mail e a senha e retorna o dicionário do usuário
                (sem a senha, incluindo o perfil "cliente" ou "admin"), ou um
                dicionário vazio se as credenciais forem inválidas.
-    Acoplamento:
+    B) Acoplamento:
         email (str), senha (str)
         Retorno: dict do usuário (sem "senha") | {} se credenciais inválidas
-    AE: email e senha são str não vazias.
-    AS: _clientes não é alterado; o dict devolvido é uma cópia sem a senha.
+    C) Condições de acoplamento:
+        AE: email e senha são str não vazias.
+        AS: _clientes não é alterado; o dict devolvido é uma cópia sem a senha.
     """
     if not _texto_valido(email) or not _texto_valido(senha):
         return {}
@@ -264,18 +268,19 @@ def AutenticarCliente(email, senha):
 
 def AdicionarItemCarrinho(cpf, codigo, qtd):
     """
-    Descrição: consulta o produto (1.2) e o estoque (1.7) e adiciona o item
+    A) Descrição: consulta o produto (1.2) e o estoque (1.7) e adiciona o item
                ao carrinho; se o item já estiver no carrinho, soma as quantidades.
-    Acoplamento:
+    B) Acoplamento:
         cpf (str), codigo (str), qtd (int)
         Retorno: True  -> item adicionado/atualizado
                  False -> cliente ou produto inexistente, qtd <= 0 ou
                           estoque insuficiente para a quantidade total
-    AE: cliente e produto existem; qtd é int > 0; quantidade já no
-        carrinho + qtd <= estoque (1.7).
-    AS: se True, o carrinho tem o item com a quantidade somada e
-        clientes.json foi gravado; se False, o carrinho não mudou.
-        O estoque nunca é alterado por esta função.
+    C) Condições de acoplamento:
+        AE: cliente e produto existem; qtd é int > 0; quantidade já no
+            carrinho + qtd <= estoque (1.7).
+        AS: se True, o carrinho tem o item com a quantidade somada e
+            clientes.json foi gravado; se False, o carrinho não mudou.
+            O estoque nunca é alterado por esta função.
     """
     cliente = _localizar_cliente_por_cpf(cpf)
     if cliente is None:
@@ -318,16 +323,17 @@ def AdicionarItemCarrinho(cpf, codigo, qtd):
 
 def AlterarQuantidadeItem(cpf, codigo, qtd):
     """
-    Descrição: define a nova quantidade de um item já presente no carrinho
+    A) Descrição: define a nova quantidade de um item já presente no carrinho
                após consultar o estoque (1.7).
-    Acoplamento:
+    B) Acoplamento:
         cpf (str), codigo (str), qtd (int)
         Retorno: True  -> quantidade alterada
                  False -> cliente inexistente, item não está no carrinho,
                           qtd <= 0 ou estoque insuficiente
-    AE: o item já está no carrinho; qtd é int > 0 e qtd <= estoque (1.7).
-    AS: se True, a quantidade do item passa a ser qtd e clientes.json foi
-        gravado; se False, o carrinho não mudou.
+    C) Condições de acoplamento:
+        AE: o item já está no carrinho; qtd é int > 0 e qtd <= estoque (1.7).
+        AS: se True, a quantidade do item passa a ser qtd e clientes.json foi
+            gravado; se False, o carrinho não mudou.
     """
     cliente = _localizar_cliente_por_cpf(cpf)
     if cliente is None or not _texto_valido(codigo):
@@ -361,14 +367,15 @@ def AlterarQuantidadeItem(cpf, codigo, qtd):
 
 def RemoverItemCarrinho(cpf, codigo):
     """
-    Descrição: remove o item do carrinho.
-    Acoplamento:
+    A) Descrição: remove o item do carrinho.
+    B) Acoplamento:
         cpf (str), codigo (str)
         Retorno: True  -> item removido
                  False -> cliente inexistente ou item não está no carrinho
-    AE: o cliente existe e o item está no carrinho.
-    AS: se True, o item não está mais no carrinho e clientes.json foi
-        gravado; se False, o carrinho não mudou.
+    C) Condições de acoplamento:
+        AE: o cliente existe e o item está no carrinho.
+        AS: se True, o item não está mais no carrinho e clientes.json foi
+            gravado; se False, o carrinho não mudou.
     """
     cliente = _localizar_cliente_por_cpf(cpf)
     if cliente is None or not _texto_valido(codigo):
@@ -390,18 +397,19 @@ def RemoverItemCarrinho(cpf, codigo):
 
 def ObterCarrinho(cpf):
     """
-    Descrição: retorna a lista de itens do carrinho, cada um com código,
+    A) Descrição: retorna a lista de itens do carrinho, cada um com código,
                nome, preço unitário e quantidade, ou lista vazia se o carrinho
                estiver vazio ou o cliente não existir.
-    Acoplamento:
+    B) Acoplamento:
         cpf (str)
         Retorno: [{"codigo": str, "nome": str, "preco": float, "quantidade": int}, ...]
                  | [] se carrinho vazio ou cliente inexistente
-    AE: cpf é str.
-    AS: nome e preço vêm do catálogo (1.2) no momento da chamada. Itens cujo
-        produto foi removido do catálogo saem do carrinho e clientes.json é
-        gravado, mantendo a assertiva estrutural "todo item no carrinho
-        possui código existente no catálogo". Fora isso, nada é alterado.
+    C) Condições de acoplamento:
+        AE: cpf é str.
+        AS: nome e preço vêm do catálogo (1.2) no momento da chamada. Itens cujo
+            produto foi removido do catálogo saem do carrinho e clientes.json é
+            gravado, mantendo a assertiva estrutural "todo item no carrinho
+            possui código existente no catálogo". Fora isso, nada é alterado.
     """
     cliente = _localizar_cliente_por_cpf(cpf)
     if cliente is None:
@@ -432,14 +440,15 @@ def ObterCarrinho(cpf):
 
 def CalcularSubtotal(cpf):
     """
-    Descrição: retorna a soma de preço * quantidade de todos os itens do
+    A) Descrição: retorna a soma de preço * quantidade de todos os itens do
                carrinho ou 0.0 se o carrinho estiver vazio ou cliente inexistente.
-    Acoplamento:
+    B) Acoplamento:
         cpf (str)
         Retorno: float (subtotal) | 0.0
-    AE: cpf é str.
-    AS: _clientes não é alterado; subtotal = soma de preco * quantidade
-        dos itens devolvidos por ObterCarrinho (2.8), com 2 casas.
+    C) Condições de acoplamento:
+        AE: cpf é str.
+        AS: _clientes não é alterado; subtotal = soma de preco * quantidade
+            dos itens devolvidos por ObterCarrinho (2.8), com 2 casas.
     """
     itens = ObterCarrinho(cpf)
     if not itens:
@@ -455,13 +464,14 @@ def CalcularSubtotal(cpf):
 
 def EsvaziarCarrinho(cpf):
     """
-    Descrição: remove todos os itens do carrinho após um pagamento aprovado.
-    Acoplamento:
+    A) Descrição: remove todos os itens do carrinho após um pagamento aprovado.
+    B) Acoplamento:
         cpf (str)
         Retorno: True -> esvaziou | False -> cliente não existe
-    AE: o cliente existe.
-    AS: se True, o carrinho do cliente é [] e clientes.json foi gravado;
-        se False, nada foi alterado.
+    C) Condições de acoplamento:
+        AE: o cliente existe.
+        AS: se True, o carrinho do cliente é [] e clientes.json foi gravado;
+            se False, nada foi alterado.
     """
     cliente = _localizar_cliente_por_cpf(cpf)
     if cliente is None:
@@ -478,13 +488,14 @@ def EsvaziarCarrinho(cpf):
 
 def SalvarClientesNoArq():
     """
-    Descrição: grava os clientes e seus carrinhos no arquivo clientes.json
+    A) Descrição: grava os clientes e seus carrinhos no arquivo clientes.json
                após cada alteração.
-    Acoplamento:
+    B) Acoplamento:
         Retorno: True -> salvou | False -> erro de escrita
-    AE: _clientes respeita as assertivas estruturais do módulo.
-    AS: se True, clientes.json contém exatamente _clientes;
-        se False, _clientes continua igual em memória.
+    C) Condições de acoplamento:
+        AE: _clientes respeita as assertivas estruturais do módulo.
+        AS: se True, clientes.json contém exatamente _clientes;
+            se False, _clientes continua igual em memória.
     """
     try:
         os.makedirs(os.path.dirname(_CAMINHO_ARQUIVO), exist_ok=True)
