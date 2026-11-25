@@ -36,7 +36,8 @@ projeto-modular-ecommerce/
 │   ├── teste_gerenciador_clientes.py
 │   ├── teste_main.py                 # integração: menus, perfis e fluxos
 │   ├── teste_processador_pedidos.py
-│   └── teste_relatorios_vendas.py
+│   ├── teste_relatorios_vendas.py
+│   └── suite_funcoes.py              # monta as suítes sem classes (FunctionTestCase)
 └── dados/                            # arquivos JSON (cada um só é lido/gravado pelo seu módulo)
     ├── produtos.json
     ├── clientes.json                 # inclui o administrador pré-cadastrado (RNF02)
@@ -139,7 +140,8 @@ python -m unittest testes.teste_main -v                        # só Main (26 te
 
 ## Regras do projeto (resumo do T2 e das orientações da disciplina)
 
-- **Sem classes próprias** — só funções. (A `unittest.TestCase` dos testadores é permitida.)
+- **Sem classes** — só funções, inclusive nos testadores: cada caso de teste é uma função
+  e `testes/suite_funcoes.py` monta a suíte com `unittest.FunctionTestCase`, da biblioteca padrão.
 - **Encapsulamento (RNF03):** dados do módulo em variáveis com `_` (ex.: `_produtos`);
   `__all__` lista só as funções de acesso; funções internas começam com `_` ou estão
   marcadas como internas no diagrama.
@@ -150,7 +152,7 @@ python -m unittest testes.teste_main -v                        # só Main (26 te
 - **Nomes das funções** iguais aos do documento (`CadastrarProduto`, `ObterCarrinho`, ...).
 - **Docstrings** no formato da matéria (§12.4): `A) Descrição`, `B) Acoplamento`
   (parâmetros e retornos) e `C) Condições de acoplamento` (AE e AS).
-- **Testes:** cada caso da seção 5 do T2 vira um `test_NN_...` com
+- **Testes:** cada caso da seção 5 do T2 vira uma função `caso_x_y_NN_...` com
   `print("x.y Cn - descrição")`; casos a mais aparecem como `Cn (extra)`. Testes nunca alteram os arquivos reais de `dados/`
   (usar pasta temporária, como em `teste_catalogo_produtos.py`).
 - **Importação entre módulos:** `from modulos import catalogo_produtos as catalogo`.

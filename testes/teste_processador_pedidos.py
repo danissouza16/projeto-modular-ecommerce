@@ -6,12 +6,14 @@ Implementa os casos de teste da seção 5.3 do documento do projeto (T2),
 incluindo as funções internas 3.2, 3.4, 3.6 e 3.9.
 
 Organização
-- Uma classe de teste por função (3.1 a 3.9); cada método é um caso Cn.
+- Sem classes: cada caso Cn é uma função; os casos de cada função
+  (3.1 a 3.9) formam um grupo na lista GRUPOS, montada por
+  testes/suite_funcoes.py com unittest.FunctionTestCase.
 - ANTES DE CADA TESTE o cenário inicial é recriado em uma pasta temporária,
   então os casos não dependem da ordem e nunca mexem em dados/pedidos.json.
 - O CatalogoProdutos (1.7, 1.8, 1.9) e o GerenciadorClientes (2.8, 2.10)
   são simulados via unittest.mock.patch, com um estoque e carrinhos
-  em memória (ver BasePedidos).
+  em memória (ver preparar_cenario).
 
 Cenário inicial
     Estoque:   P001 = 10, P002 = 3
@@ -41,6 +43,7 @@ from unittest.mock import patch
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from modulos import processador_pedidos as pedidos   # noqa: E402
+from testes.suite_funcoes import grupo, montar_suite, verifica   # noqa: E402
 
 CPF_MARIA = "12345678901"
 CPF_JOAO = "98765432100"
@@ -87,330 +90,438 @@ def ler_arquivo(caminho):
     with open(caminho, "r", encoding="utf-8") as arquivo:
         return json.load(arquivo)
 
+# --------------------------------------------------------------------------
+# Preparação e limpeza do cenário (rodam antes e depois de CADA caso)
+# --------------------------------------------------------------------------
 
-class BasePedidos(unittest.TestCase):
-    """Recria o cenário (pedidos, estoque e carrinhos) antes de cada teste."""
+_ctx = {}         # pasta, arquivo, estoque e carrinhos simulados do caso atual
+_limpezas = []    # ações de limpeza, desfeitas na ordem inversa
 
-    def setUp(self):
-        caminho_original = pedidos._CAMINHO_ARQUIVO
-        self.pasta = tempfile.mkdtemp()
-        self.arquivo = montar_cenario_inicial(self.pasta)
 
-        def restaurar():
-            pedidos._CAMINHO_ARQUIVO = caminho_original
-            shutil.rmtree(self.pasta, ignore_errors=True)
-        self.addCleanup(restaurar)
+# Versões simuladas do CatalogoProdutos (1.7, 1.8, 1.9) e do
+# GerenciadorClientes (2.8, 2.10), com estoque e carrinhos em memória.
 
-        self.estoque = {"P001": 10, "P002": 3}
-        self.carrinhos = {
-            CPF_MARIA: [_item(ITEM_P001, 2)],
-            CPF_JOAO: [],
-            CPF_ANA: [_item(ITEM_P002, 3)],
-        }
-        for alvo, simulacao in (
-            ("modulos.catalogo_produtos.ConsultarEstoque", self._consultar_estoque),
-            ("modulos.catalogo_produtos.BaixarEstoque", self._baixar_estoque),
-            ("modulos.catalogo_produtos.ReporEstoque", self._repor_estoque),
-            ("modulos.gerenciador_clientes.ObterCarrinho", self._obter_carrinho),
-            ("modulos.gerenciador_clientes.EsvaziarCarrinho", self._esvaziar_carrinho),
-        ):
-            patcher = patch(alvo, side_effect=simulacao)
-            patcher.start()
-            self.addCleanup(patcher.stop)
+def _consultar_estoque(codigo):
+    return _ctx["estoque"].get(codigo, -1)
 
-    # --- simulações do Módulo 1 (CatalogoProdutos) -------------------------
 
-    def _consultar_estoque(self, codigo):
-        return self.estoque.get(codigo, -1)
+def _baixar_estoque(codigo, qtd):
+    estoque = _ctx["estoque"]
+    if codigo not in estoque or qtd <= 0 or qtd > estoque[codigo]:
+        return False
+    estoque[codigo] -= qtd
+    return True
 
-    def _baixar_estoque(self, codigo, qtd):
-        if codigo not in self.estoque or qtd <= 0 or qtd > self.estoque[codigo]:
-            return False
-        self.estoque[codigo] -= qtd
-        return True
 
-    def _repor_estoque(self, codigo, qtd):
-        if codigo not in self.estoque or qtd <= 0:
-            return False
-        self.estoque[codigo] += qtd
-        return True
+def _repor_estoque(codigo, qtd):
+    estoque = _ctx["estoque"]
+    if codigo not in estoque or qtd <= 0:
+        return False
+    estoque[codigo] += qtd
+    return True
 
-    # --- simulações do Módulo 2 (GerenciadorClientes) ----------------------
 
-    def _obter_carrinho(self, cpf):
-        return copy.deepcopy(self.carrinhos.get(cpf, []))
+def _obter_carrinho(cpf):
+    return copy.deepcopy(_ctx["carrinhos"].get(cpf, []))
 
-    def _esvaziar_carrinho(self, cpf):
-        if cpf not in self.carrinhos:
-            return False
-        self.carrinhos[cpf] = []
-        return True
+
+def _esvaziar_carrinho(cpf):
+    if cpf not in _ctx["carrinhos"]:
+        return False
+    _ctx["carrinhos"][cpf] = []
+    return True
+
+
+def preparar_cenario():
+    """Recria pedidos, estoque e carrinhos e liga as simulações."""
+    caminho_original = pedidos._CAMINHO_ARQUIVO
+    _ctx["pasta"] = tempfile.mkdtemp()
+    _ctx["arquivo"] = montar_cenario_inicial(_ctx["pasta"])
+
+    def restaurar():
+        pedidos._CAMINHO_ARQUIVO = caminho_original
+        shutil.rmtree(_ctx["pasta"], ignore_errors=True)
+    _limpezas.append(restaurar)
+
+    _ctx["estoque"] = {"P001": 10, "P002": 3}
+    _ctx["carrinhos"] = {
+        CPF_MARIA: [_item(ITEM_P001, 2)],
+        CPF_JOAO: [],
+        CPF_ANA: [_item(ITEM_P002, 3)],
+    }
+    for alvo, simulacao in (
+        ("modulos.catalogo_produtos.ConsultarEstoque", _consultar_estoque),
+        ("modulos.catalogo_produtos.BaixarEstoque", _baixar_estoque),
+        ("modulos.catalogo_produtos.ReporEstoque", _repor_estoque),
+        ("modulos.gerenciador_clientes.ObterCarrinho", _obter_carrinho),
+        ("modulos.gerenciador_clientes.EsvaziarCarrinho", _esvaziar_carrinho),
+    ):
+        patcher = patch(alvo, side_effect=simulacao)
+        patcher.start()
+        _limpezas.append(patcher.stop)
+
+
+def limpar_cenario():
+    """Desliga as simulações e apaga a pasta temporária."""
+    while _limpezas:
+        _limpezas.pop()()
+
+
+def _numeros(lista):
+    return [p["numero"] for p in lista]
+
+
+ITENS_3_2 = [{"codigo": "P001", "preco": 49.90, "quantidade": 2}]
+
 
 
 # ==========================================================================
 # 3.1 CriarPedido(cpf: str) -> dict
 # ==========================================================================
 
-class Teste_3_1_CriarPedido(BasePedidos):
 
-    def test_01_carrinho_valido_e_estoque_suficiente(self):
-        print("3.1 C1 - Criacao de pedido com carrinho valido e estoque suficiente")
-        resultado = pedidos.CriarPedido(CPF_MARIA)
-        self.assertEqual(resultado["numero"], 6)
-        self.assertEqual(resultado["cpf"], CPF_MARIA)
-        self.assertEqual(resultado["data"], datetime.date.today().isoformat())
-        self.assertEqual(resultado["itens"], [_item(ITEM_P001, 2)])
-        self.assertAlmostEqual(resultado["subtotal"], 99.80)
-        self.assertAlmostEqual(resultado["frete"], 10.00)
-        self.assertAlmostEqual(resultado["desconto"], 0.0)
-        self.assertAlmostEqual(resultado["total"], 109.80)
-        self.assertEqual(resultado["status"], "Aguardando pagamento")
-        self.assertEqual(len(ler_arquivo(self.arquivo)), 6)
+def caso_3_1_01_carrinho_valido_e_estoque_suficiente():
+    print("3.1 C1 - Criacao de pedido com carrinho valido e estoque suficiente")
+    resultado = pedidos.CriarPedido(CPF_MARIA)
+    verifica.assertEqual(resultado["numero"], 6)
+    verifica.assertEqual(resultado["cpf"], CPF_MARIA)
+    verifica.assertEqual(resultado["data"], datetime.date.today().isoformat())
+    verifica.assertEqual(resultado["itens"], [_item(ITEM_P001, 2)])
+    verifica.assertAlmostEqual(resultado["subtotal"], 99.80)
+    verifica.assertAlmostEqual(resultado["frete"], 10.00)
+    verifica.assertAlmostEqual(resultado["desconto"], 0.0)
+    verifica.assertAlmostEqual(resultado["total"], 109.80)
+    verifica.assertEqual(resultado["status"], "Aguardando pagamento")
+    verifica.assertEqual(len(ler_arquivo(_ctx["arquivo"])), 6)
 
-    def test_02_carrinho_vazio(self):
-        print("3.1 C2 - Criacao com carrinho vazio")
-        self.assertEqual(pedidos.CriarPedido(CPF_JOAO), {})
-        self.assertEqual(len(ler_arquivo(self.arquivo)), 5)
 
-    def test_03_estoque_insuficiente(self):
-        print("3.1 C3 - Criacao com estoque insuficiente em algum item")
-        self.assertTrue(self._baixar_estoque("P002", 1))    # estoque 3 -> 2
-        self.assertEqual(self.estoque["P002"], 2)
-        self.assertEqual(pedidos.CriarPedido(CPF_ANA), {})
-        self.assertEqual(len(ler_arquivo(self.arquivo)), 5)
+def caso_3_1_02_carrinho_vazio():
+    print("3.1 C2 - Criacao com carrinho vazio")
+    verifica.assertEqual(pedidos.CriarPedido(CPF_JOAO), {})
+    verifica.assertEqual(len(ler_arquivo(_ctx["arquivo"])), 5)
 
-    def test_04_cliente_inexistente(self):
-        print("3.1 C4 - Criacao para cliente inexistente")
-        self.assertEqual(pedidos.CriarPedido("00000000000"), {})
+
+def caso_3_1_03_estoque_insuficiente():
+    print("3.1 C3 - Criacao com estoque insuficiente em algum item")
+    verifica.assertTrue(_baixar_estoque("P002", 1))    # estoque 3 -> 2
+    verifica.assertEqual(_ctx["estoque"]["P002"], 2)
+    verifica.assertEqual(pedidos.CriarPedido(CPF_ANA), {})
+    verifica.assertEqual(len(ler_arquivo(_ctx["arquivo"])), 5)
+
+
+def caso_3_1_04_cliente_inexistente():
+    print("3.1 C4 - Criacao para cliente inexistente")
+    verifica.assertEqual(pedidos.CriarPedido("00000000000"), {})
 
 
 # ==========================================================================
 # 3.2 CalcularTotal(itens: list, frete: float, desconto: float) -> float (interna)
 # ==========================================================================
 
-class Teste_3_2_CalcularTotal(BasePedidos):
 
-    ITENS = [{"codigo": "P001", "preco": 49.90, "quantidade": 2}]
+def caso_3_2_01_itens_e_frete_sem_desconto():
+    print("3.2 C1 - Calculo com itens, frete e sem desconto")
+    verifica.assertAlmostEqual(pedidos.CalcularTotal(ITENS_3_2, 10.0, 0.0), 109.80)
 
-    def test_01_itens_e_frete_sem_desconto(self):
-        print("3.2 C1 - Calculo com itens, frete e sem desconto")
-        self.assertAlmostEqual(pedidos.CalcularTotal(self.ITENS, 10.0, 0.0), 109.80)
 
-    def test_02_itens_frete_e_desconto(self):
-        print("3.2 C2 - Calculo com itens, frete e desconto")
-        self.assertAlmostEqual(pedidos.CalcularTotal(self.ITENS, 10.0, 5.0), 104.80)
+def caso_3_2_02_itens_frete_e_desconto():
+    print("3.2 C2 - Calculo com itens, frete e desconto")
+    verifica.assertAlmostEqual(pedidos.CalcularTotal(ITENS_3_2, 10.0, 5.0), 104.80)
 
-    def test_03_lista_vazia(self):
-        print("3.2 C3 - Lista de itens vazia")
-        self.assertEqual(pedidos.CalcularTotal([], 10.0, 0.0), 0.0)
 
-    def test_04_frete_negativo(self):
-        print("3.2 C4 - Frete negativo")
-        self.assertEqual(pedidos.CalcularTotal(self.ITENS, -10.0, 0.0), 0.0)
+def caso_3_2_03_lista_vazia():
+    print("3.2 C3 - Lista de itens vazia")
+    verifica.assertEqual(pedidos.CalcularTotal([], 10.0, 0.0), 0.0)
 
-    def test_05_desconto_negativo(self):
-        print("3.2 C5 - Desconto negativo")
-        self.assertEqual(pedidos.CalcularTotal(self.ITENS, 10.0, -5.0), 0.0)
+
+def caso_3_2_04_frete_negativo():
+    print("3.2 C4 - Frete negativo")
+    verifica.assertEqual(pedidos.CalcularTotal(ITENS_3_2, -10.0, 0.0), 0.0)
+
+
+def caso_3_2_05_desconto_negativo():
+    print("3.2 C5 - Desconto negativo")
+    verifica.assertEqual(pedidos.CalcularTotal(ITENS_3_2, 10.0, -5.0), 0.0)
 
 
 # ==========================================================================
 # 3.3 SimularPagamento(pedido: dict, forma: str) -> bool
 # ==========================================================================
 
-class Teste_3_3_SimularPagamento(BasePedidos):
 
-    def test_01_pix_aprovado(self):
-        print("3.3 C1 - Pagamento aprovado via Pix")
-        self.carrinhos[CPF_MARIA] = [_item(ITEM_P001, 2)]
-        self.assertTrue(pedidos.SimularPagamento(pedidos.BuscarPedido(2), "pix"))
-        self.assertEqual(pedidos.BuscarPedido(2)["status"], "Pago")
-        self.assertEqual(self.estoque["P002"], 2)
-        self.assertEqual(self.carrinhos[CPF_MARIA], [])
+def caso_3_3_01_pix_aprovado():
+    print("3.3 C1 - Pagamento aprovado via Pix")
+    _ctx["carrinhos"][CPF_MARIA] = [_item(ITEM_P001, 2)]
+    verifica.assertTrue(pedidos.SimularPagamento(pedidos.BuscarPedido(2), "pix"))
+    verifica.assertEqual(pedidos.BuscarPedido(2)["status"], "Pago")
+    verifica.assertEqual(_ctx["estoque"]["P002"], 2)
+    verifica.assertEqual(_ctx["carrinhos"][CPF_MARIA], [])
 
-    def test_02_cartao_aprovado(self):
-        print("3.3 C2 - Pagamento aprovado via cartao")
-        self.assertTrue(pedidos.SimularPagamento(pedidos.BuscarPedido(4), "cartao"))
-        self.assertEqual(pedidos.BuscarPedido(4)["status"], "Pago")
-        self.assertEqual(self.estoque["P001"], 9)
 
-    def test_03_boleto_aprovado(self):
-        print("3.3 C3 - Pagamento aprovado via boleto")
-        self.assertTrue(pedidos.SimularPagamento(pedidos.BuscarPedido(5), "boleto"))
-        self.assertEqual(pedidos.BuscarPedido(5)["status"], "Pago")
-        self.assertEqual(self.estoque["P001"], 0)
+def caso_3_3_02_cartao_aprovado():
+    print("3.3 C2 - Pagamento aprovado via cartao")
+    verifica.assertTrue(pedidos.SimularPagamento(pedidos.BuscarPedido(4), "cartao"))
+    verifica.assertEqual(pedidos.BuscarPedido(4)["status"], "Pago")
+    verifica.assertEqual(_ctx["estoque"]["P001"], 9)
 
-    def test_04_cartao_recusado_acima_do_limite(self):
-        print("3.3 C4 - Pagamento recusado via cartao (total acima do limite)")
-        self.assertFalse(pedidos.SimularPagamento(pedidos.BuscarPedido(5), "cartao"))
-        self.assertEqual(pedidos.BuscarPedido(5)["status"], "Cancelado")
-        self.assertEqual(self.estoque["P001"], 10)
 
-    def test_05_boleto_recusado_abaixo_do_minimo(self):
-        print("3.3 C5 - Pagamento recusado via boleto (total abaixo do minimo)")
-        self.assertFalse(pedidos.SimularPagamento(pedidos.BuscarPedido(2), "boleto"))
-        self.assertEqual(pedidos.BuscarPedido(2)["status"], "Cancelado")
-        self.assertEqual(self.estoque["P002"], 3)
+def caso_3_3_03_boleto_aprovado():
+    print("3.3 C3 - Pagamento aprovado via boleto")
+    verifica.assertTrue(pedidos.SimularPagamento(pedidos.BuscarPedido(5), "boleto"))
+    verifica.assertEqual(pedidos.BuscarPedido(5)["status"], "Pago")
+    verifica.assertEqual(_ctx["estoque"]["P001"], 0)
 
-    def test_06_forma_de_pagamento_invalida(self):
-        print("3.3 C6 - Forma de pagamento invalida")
-        self.assertFalse(pedidos.SimularPagamento(pedidos.BuscarPedido(4), "dinheiro"))
-        self.assertEqual(pedidos.BuscarPedido(4)["status"], "Aguardando pagamento")
-        self.assertEqual(self.estoque, {"P001": 10, "P002": 3})
 
-    def test_07_pedido_que_nao_esta_aguardando_pagamento(self):
-        print("3.3 C7 - Pedido que nao esta aguardando pagamento")
-        self.assertFalse(pedidos.SimularPagamento(pedidos.BuscarPedido(1), "pix"))
-        self.assertEqual(self.estoque["P001"], 10)
+def caso_3_3_04_cartao_recusado_acima_do_limite():
+    print("3.3 C4 - Pagamento recusado via cartao (total acima do limite)")
+    verifica.assertFalse(pedidos.SimularPagamento(pedidos.BuscarPedido(5), "cartao"))
+    verifica.assertEqual(pedidos.BuscarPedido(5)["status"], "Cancelado")
+    verifica.assertEqual(_ctx["estoque"]["P001"], 10)
+
+
+def caso_3_3_05_boleto_recusado_abaixo_do_minimo():
+    print("3.3 C5 - Pagamento recusado via boleto (total abaixo do minimo)")
+    verifica.assertFalse(pedidos.SimularPagamento(pedidos.BuscarPedido(2), "boleto"))
+    verifica.assertEqual(pedidos.BuscarPedido(2)["status"], "Cancelado")
+    verifica.assertEqual(_ctx["estoque"]["P002"], 3)
+
+
+def caso_3_3_06_forma_de_pagamento_invalida():
+    print("3.3 C6 - Forma de pagamento invalida")
+    verifica.assertFalse(pedidos.SimularPagamento(pedidos.BuscarPedido(4), "dinheiro"))
+    verifica.assertEqual(pedidos.BuscarPedido(4)["status"], "Aguardando pagamento")
+    verifica.assertEqual(_ctx["estoque"], {"P001": 10, "P002": 3})
+
+
+def caso_3_3_07_pedido_que_nao_esta_aguardando_pagamento():
+    print("3.3 C7 - Pedido que nao esta aguardando pagamento")
+    verifica.assertFalse(pedidos.SimularPagamento(pedidos.BuscarPedido(1), "pix"))
+    verifica.assertEqual(_ctx["estoque"]["P001"], 10)
 
 
 # ==========================================================================
 # 3.4 AtualizarStatus(num: int, status: str) -> bool (interna)
 # ==========================================================================
 
-class Teste_3_4_AtualizarStatus(BasePedidos):
 
-    def test_01_alteracao_valida(self):
-        print("3.4 C1 - Alteracao de status valida")
-        self.assertTrue(pedidos.AtualizarStatus(2, "Pago"))
-        self.assertEqual(pedidos.BuscarPedido(2)["status"], "Pago")
+def caso_3_4_01_alteracao_valida():
+    print("3.4 C1 - Alteracao de status valida")
+    verifica.assertTrue(pedidos.AtualizarStatus(2, "Pago"))
+    verifica.assertEqual(pedidos.BuscarPedido(2)["status"], "Pago")
 
-    def test_02_pedido_inexistente(self):
-        print("3.4 C2 - Alteracao de pedido inexistente")
-        self.assertFalse(pedidos.AtualizarStatus(999, "Pago"))
 
-    def test_03_status_fora_dos_permitidos(self):
-        print("3.4 C3 - Status fora dos tres permitidos")
-        self.assertFalse(pedidos.AtualizarStatus(2, "Enviado"))
-        self.assertEqual(pedidos.BuscarPedido(2)["status"], "Aguardando pagamento")
+def caso_3_4_02_pedido_inexistente():
+    print("3.4 C2 - Alteracao de pedido inexistente")
+    verifica.assertFalse(pedidos.AtualizarStatus(999, "Pago"))
+
+
+def caso_3_4_03_status_fora_dos_permitidos():
+    print("3.4 C3 - Status fora dos tres permitidos")
+    verifica.assertFalse(pedidos.AtualizarStatus(2, "Enviado"))
+    verifica.assertEqual(pedidos.BuscarPedido(2)["status"], "Aguardando pagamento")
 
 
 # ==========================================================================
 # 3.5 CancelarPedido(num: int) -> bool
 # ==========================================================================
 
-class Teste_3_5_CancelarPedido(BasePedidos):
 
-    def test_01_pedido_aguardando_pagamento(self):
-        print("3.5 C1 - Cancelamento de pedido aguardando pagamento")
-        self.assertTrue(pedidos.CancelarPedido(2))
-        self.assertEqual(pedidos.BuscarPedido(2)["status"], "Cancelado")
-        self.assertEqual(self.estoque["P002"], 3)
+def caso_3_5_01_pedido_aguardando_pagamento():
+    print("3.5 C1 - Cancelamento de pedido aguardando pagamento")
+    verifica.assertTrue(pedidos.CancelarPedido(2))
+    verifica.assertEqual(pedidos.BuscarPedido(2)["status"], "Cancelado")
+    verifica.assertEqual(_ctx["estoque"]["P002"], 3)
 
-    def test_02_pedido_pago(self):
-        print("3.5 C2 - Cancelamento de pedido pago")
-        self.assertTrue(pedidos.CancelarPedido(1))
-        self.assertEqual(pedidos.BuscarPedido(1)["status"], "Cancelado")
-        self.assertEqual(self.estoque["P001"], 12)
 
-    def test_03_pedido_inexistente(self):
-        print("3.5 C3 - Cancelamento de pedido inexistente")
-        self.assertFalse(pedidos.CancelarPedido(999))
+def caso_3_5_02_pedido_pago():
+    print("3.5 C2 - Cancelamento de pedido pago")
+    verifica.assertTrue(pedidos.CancelarPedido(1))
+    verifica.assertEqual(pedidos.BuscarPedido(1)["status"], "Cancelado")
+    verifica.assertEqual(_ctx["estoque"]["P001"], 12)
 
-    def test_04_pedido_ja_cancelado(self):
-        print("3.5 C4 - Cancelamento de pedido ja cancelado")
-        self.assertFalse(pedidos.CancelarPedido(3))
-        self.assertEqual(self.estoque["P001"], 10)
 
-    def test_05_pedido_pago_com_produto_removido(self):
-        print("3.5 C5 (extra) - Cancelamento de pedido pago com produto ja removido do catalogo")
-        removido = {"codigo": "P999", "nome": "Fora de linha", "preco": 5.00}
-        pedidos._pedidos.append(_pedido(6, CPF_MARIA, "2026-10-20",
-                                        [_item(ITEM_P001, 1), _item(removido, 1)],
-                                        64.90, "Pago"))
-        self.assertTrue(pedidos.CancelarPedido(6))
-        self.assertEqual(pedidos.BuscarPedido(6)["status"], "Cancelado")
-        self.assertEqual(self.estoque["P001"], 11)
-        self.assertNotIn("P999", self.estoque)
+def caso_3_5_03_pedido_inexistente():
+    print("3.5 C3 - Cancelamento de pedido inexistente")
+    verifica.assertFalse(pedidos.CancelarPedido(999))
+
+
+def caso_3_5_04_pedido_ja_cancelado():
+    print("3.5 C4 - Cancelamento de pedido ja cancelado")
+    verifica.assertFalse(pedidos.CancelarPedido(3))
+    verifica.assertEqual(_ctx["estoque"]["P001"], 10)
+
+
+def caso_3_5_05_pedido_pago_com_produto_removido():
+    print("3.5 C5 (extra) - Cancelamento de pedido pago com produto ja removido do catalogo")
+    removido = {"codigo": "P999", "nome": "Fora de linha", "preco": 5.00}
+    pedidos._pedidos.append(_pedido(6, CPF_MARIA, "2026-10-20",
+                                    [_item(ITEM_P001, 1), _item(removido, 1)],
+                                    64.90, "Pago"))
+    verifica.assertTrue(pedidos.CancelarPedido(6))
+    verifica.assertEqual(pedidos.BuscarPedido(6)["status"], "Cancelado")
+    verifica.assertEqual(_ctx["estoque"]["P001"], 11)
+    verifica.assertNotIn("P999", _ctx["estoque"])
 
 
 # ==========================================================================
 # 3.6 BuscarPedido(num: int) -> dict (interna)
 # ==========================================================================
 
-class Teste_3_6_BuscarPedido(BasePedidos):
 
-    def test_01_pedido_existente(self):
-        print("3.6 C1 - Busca de pedido existente")
-        resultado = pedidos.BuscarPedido(1)
-        self.assertEqual(resultado, CENARIO_INICIAL[0])
-        self.assertEqual(resultado["status"], "Pago")
+def caso_3_6_01_pedido_existente():
+    print("3.6 C1 - Busca de pedido existente")
+    resultado = pedidos.BuscarPedido(1)
+    verifica.assertEqual(resultado, CENARIO_INICIAL[0])
+    verifica.assertEqual(resultado["status"], "Pago")
 
-    def test_02_pedido_inexistente(self):
-        print("3.6 C2 - Busca de pedido inexistente")
-        self.assertEqual(pedidos.BuscarPedido(999), {})
+
+def caso_3_6_02_pedido_inexistente():
+    print("3.6 C2 - Busca de pedido inexistente")
+    verifica.assertEqual(pedidos.BuscarPedido(999), {})
 
 
 # ==========================================================================
 # 3.7 ListarPedidos(status: str) -> list
 # ==========================================================================
 
-class Teste_3_7_ListarPedidos(BasePedidos):
 
-    @staticmethod
-    def _numeros(lista):
-        return [p["numero"] for p in lista]
+def caso_3_7_01_pedidos_pagos():
+    print("3.7 C1 - Listagem de pedidos pagos")
+    verifica.assertEqual(_numeros(pedidos.ListarPedidos("Pago")), [1])
 
-    def test_01_pedidos_pagos(self):
-        print("3.7 C1 - Listagem de pedidos pagos")
-        self.assertEqual(self._numeros(pedidos.ListarPedidos("Pago")), [1])
 
-    def test_02_pedidos_aguardando_pagamento(self):
-        print("3.7 C2 - Listagem de pedidos aguardando pagamento")
-        self.assertEqual(self._numeros(pedidos.ListarPedidos("Aguardando pagamento")), [2, 4, 5])
+def caso_3_7_02_pedidos_aguardando_pagamento():
+    print("3.7 C2 - Listagem de pedidos aguardando pagamento")
+    verifica.assertEqual(_numeros(pedidos.ListarPedidos("Aguardando pagamento")), [2, 4, 5])
 
-    def test_03_pedidos_cancelados(self):
-        print("3.7 C3 - Listagem de pedidos cancelados")
-        self.assertEqual(self._numeros(pedidos.ListarPedidos("Cancelado")), [3])
 
-    def test_04_status_vazio_lista_todos(self):
-        print("3.7 C4 - Listagem com status vazio (todos os pedidos)")
-        self.assertEqual(self._numeros(pedidos.ListarPedidos("")), [1, 2, 3, 4, 5])
+def caso_3_7_03_pedidos_cancelados():
+    print("3.7 C3 - Listagem de pedidos cancelados")
+    verifica.assertEqual(_numeros(pedidos.ListarPedidos("Cancelado")), [3])
 
-    def test_05_status_sem_pedidos(self):
-        print("3.7 C5 - Listagem de status sem pedidos")
-        self.assertEqual(pedidos.ListarPedidos("Enviado"), [])
+
+def caso_3_7_04_status_vazio_lista_todos():
+    print("3.7 C4 - Listagem com status vazio (todos os pedidos)")
+    verifica.assertEqual(_numeros(pedidos.ListarPedidos("")), [1, 2, 3, 4, 5])
+
+
+def caso_3_7_05_status_sem_pedidos():
+    print("3.7 C5 - Listagem de status sem pedidos")
+    verifica.assertEqual(pedidos.ListarPedidos("Enviado"), [])
 
 
 # ==========================================================================
 # 3.8 ListarPedidosCliente(cpf: str) -> list
 # ==========================================================================
 
-class Teste_3_8_ListarPedidosCliente(BasePedidos):
 
-    @staticmethod
-    def _numeros(lista):
-        return [p["numero"] for p in lista]
+def caso_3_8_01_cliente_com_mais_de_um_pedido():
+    print("3.8 C1 - Cliente com mais de um pedido (ordem)")
+    verifica.assertEqual(_numeros(pedidos.ListarPedidosCliente(CPF_MARIA)), [2, 1])
 
-    def test_01_cliente_com_mais_de_um_pedido(self):
-        print("3.8 C1 - Cliente com mais de um pedido (ordem)")
-        self.assertEqual(self._numeros(pedidos.ListarPedidosCliente(CPF_MARIA)), [2, 1])
 
-    def test_02_cliente_com_status_variados(self):
-        print("3.8 C2 - Cliente com pedidos de status variados")
-        self.assertEqual(self._numeros(pedidos.ListarPedidosCliente(CPF_JOAO)), [5, 4, 3])
+def caso_3_8_02_cliente_com_status_variados():
+    print("3.8 C2 - Cliente com pedidos de status variados")
+    verifica.assertEqual(_numeros(pedidos.ListarPedidosCliente(CPF_JOAO)), [5, 4, 3])
 
-    def test_03_cliente_sem_pedidos(self):
-        print("3.8 C3 - Cliente sem pedidos")
-        self.assertEqual(pedidos.ListarPedidosCliente(CPF_ANA), [])
+
+def caso_3_8_03_cliente_sem_pedidos():
+    print("3.8 C3 - Cliente sem pedidos")
+    verifica.assertEqual(pedidos.ListarPedidosCliente(CPF_ANA), [])
 
 
 # ==========================================================================
 # 3.9 SalvarPedidosNoArq() -> bool (interna)
 # ==========================================================================
 
-class Teste_3_9_SalvarPedidosNoArq(BasePedidos):
 
-    def test_01_gravacao_bem_sucedida(self):
-        print("3.9 C1 - Gravacao com sucesso")
-        pedidos.CriarPedido(CPF_MARIA)
-        self.assertTrue(pedidos.SalvarPedidosNoArq())
-        self.assertEqual(len(ler_arquivo(self.arquivo)), 6)
+def caso_3_9_01_gravacao_bem_sucedida():
+    print("3.9 C1 - Gravacao com sucesso")
+    pedidos.CriarPedido(CPF_MARIA)
+    verifica.assertTrue(pedidos.SalvarPedidosNoArq())
+    verifica.assertEqual(len(ler_arquivo(_ctx["arquivo"])), 6)
 
-    def test_02_falha_de_gravacao(self):
-        print("3.9 C2 - Gravacao quando o arquivo nao pode ser escrito")
-        os.remove(self.arquivo)
-        os.mkdir(self.arquivo)          # pasta com o nome do arquivo: impede a escrita
-        self.assertFalse(pedidos.SalvarPedidosNoArq())
+
+def caso_3_9_02_falha_de_gravacao():
+    print("3.9 C2 - Gravacao quando o arquivo nao pode ser escrito")
+    os.remove(_ctx["arquivo"])
+    os.mkdir(_ctx["arquivo"])          # pasta com o nome do arquivo: impede a escrita
+    verifica.assertFalse(pedidos.SalvarPedidosNoArq())
+
+# ==========================================================================
+# Ordem de execução: um grupo por função, casos na ordem C1, C2, ...
+# ==========================================================================
+
+GRUPOS = [
+    # 3.1 CriarPedido(cpf: str) -> dict
+    grupo([
+        caso_3_1_01_carrinho_valido_e_estoque_suficiente,
+        caso_3_1_02_carrinho_vazio,
+        caso_3_1_03_estoque_insuficiente,
+        caso_3_1_04_cliente_inexistente,
+    ], antes_de_cada=preparar_cenario, depois_de_cada=limpar_cenario),
+    # 3.2 CalcularTotal(itens: list, frete: float, desconto: float) -> float (interna)
+    grupo([
+        caso_3_2_01_itens_e_frete_sem_desconto,
+        caso_3_2_02_itens_frete_e_desconto,
+        caso_3_2_03_lista_vazia,
+        caso_3_2_04_frete_negativo,
+        caso_3_2_05_desconto_negativo,
+    ], antes_de_cada=preparar_cenario, depois_de_cada=limpar_cenario),
+    # 3.3 SimularPagamento(pedido: dict, forma: str) -> bool
+    grupo([
+        caso_3_3_01_pix_aprovado,
+        caso_3_3_02_cartao_aprovado,
+        caso_3_3_03_boleto_aprovado,
+        caso_3_3_04_cartao_recusado_acima_do_limite,
+        caso_3_3_05_boleto_recusado_abaixo_do_minimo,
+        caso_3_3_06_forma_de_pagamento_invalida,
+        caso_3_3_07_pedido_que_nao_esta_aguardando_pagamento,
+    ], antes_de_cada=preparar_cenario, depois_de_cada=limpar_cenario),
+    # 3.4 AtualizarStatus(num: int, status: str) -> bool (interna)
+    grupo([
+        caso_3_4_01_alteracao_valida,
+        caso_3_4_02_pedido_inexistente,
+        caso_3_4_03_status_fora_dos_permitidos,
+    ], antes_de_cada=preparar_cenario, depois_de_cada=limpar_cenario),
+    # 3.5 CancelarPedido(num: int) -> bool
+    grupo([
+        caso_3_5_01_pedido_aguardando_pagamento,
+        caso_3_5_02_pedido_pago,
+        caso_3_5_03_pedido_inexistente,
+        caso_3_5_04_pedido_ja_cancelado,
+        caso_3_5_05_pedido_pago_com_produto_removido,
+    ], antes_de_cada=preparar_cenario, depois_de_cada=limpar_cenario),
+    # 3.6 BuscarPedido(num: int) -> dict (interna)
+    grupo([
+        caso_3_6_01_pedido_existente,
+        caso_3_6_02_pedido_inexistente,
+    ], antes_de_cada=preparar_cenario, depois_de_cada=limpar_cenario),
+    # 3.7 ListarPedidos(status: str) -> list
+    grupo([
+        caso_3_7_01_pedidos_pagos,
+        caso_3_7_02_pedidos_aguardando_pagamento,
+        caso_3_7_03_pedidos_cancelados,
+        caso_3_7_04_status_vazio_lista_todos,
+        caso_3_7_05_status_sem_pedidos,
+    ], antes_de_cada=preparar_cenario, depois_de_cada=limpar_cenario),
+    # 3.8 ListarPedidosCliente(cpf: str) -> list
+    grupo([
+        caso_3_8_01_cliente_com_mais_de_um_pedido,
+        caso_3_8_02_cliente_com_status_variados,
+        caso_3_8_03_cliente_sem_pedidos,
+    ], antes_de_cada=preparar_cenario, depois_de_cada=limpar_cenario),
+    # 3.9 SalvarPedidosNoArq() -> bool (interna)
+    grupo([
+        caso_3_9_01_gravacao_bem_sucedida,
+        caso_3_9_02_falha_de_gravacao,
+    ], antes_de_cada=preparar_cenario, depois_de_cada=limpar_cenario),
+]
+
+
+def load_tests(loader, testes_padrao, padrao):
+    """Chamada pelo unittest (discover ou execução direta) para montar a suíte."""
+    return montar_suite(GRUPOS)
 
 
 if __name__ == "__main__":
